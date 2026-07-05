@@ -1,0 +1,1770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Radio Spec Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Palette lifted directly from CeraOne's design system (styles.scss):
+     crimson primary + warm gold accent, warm near-black darks, Inter type. */
+  :root{
+    --bg:#F9F8F7;
+    --panel:#FFFFFF;
+    --panel-2:#F3F1EF;
+    --border:#E8E3E0;
+    --text:#1A1215;
+    --text-dim:#5C4F52;
+    --text-faint:#9A8E91;
+    --accent:#C93545;
+    --accent-dim:#E8C6CA;
+    --accent-2:#D4A054;
+    --on-accent:#FFFFFF;
+    --danger:#A12A38;
+    --ok:#2F9E58;
+    --card-shadow:0 1px 3px rgba(26,18,21,0.05), 0 4px 12px rgba(26,18,21,0.03);
+    --card-shadow-hover:0 4px 16px rgba(26,18,21,0.07), 0 8px 32px rgba(201,53,69,0.06);
+    --radius:10px;
+    --sans:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --display:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  html[data-theme="dark"]{
+    --bg:#110D0E;
+    --panel:#1A1215;
+    --panel-2:#241C1F;
+    --border:#2E2326;
+    --text:#F3EEEF;
+    --text-dim:#A39598;
+    --text-faint:#6E5F63;
+    --accent:#C93545;
+    --accent-dim:#5A2129;
+    --accent-2:#D4A054;
+    --on-accent:#FFFFFF;
+    --danger:#E05565;
+    --ok:#34C979;
+    --card-shadow:0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+    --card-shadow-hover:0 4px 16px rgba(0,0,0,0.4), 0 8px 32px rgba(201,53,69,0.08);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+    transition:background-color .3s ease, color .3s ease;
+  }
+  ::-webkit-scrollbar{width:6px;height:6px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--text-faint);border-radius:3px;}
+  ::-webkit-scrollbar-thumb:hover{background:var(--text-dim);}
+  ::selection{background:var(--accent);color:var(--on-accent);}
+  a{color:var(--accent);}
+
+  /* ---------- layout shell ---------- */
+  .shell{max-width:1180px;margin:0 auto;padding:28px 24px 80px;}
+  header.top{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:1px solid var(--border);
+    padding-bottom:18px;margin-bottom:22px;gap:20px;flex-wrap:wrap;
+  }
+  .brand{display:flex;flex-direction:column;gap:4px;}
+  .brand-mark{display:flex;align-items:center;gap:10px;}
+  .version-badge{
+    font-family:var(--sans);font-size:11px;font-weight:600;color:var(--text-faint);
+    background:var(--panel-2);border:1px solid var(--border);border-radius:20px;
+    padding:2px 9px;letter-spacing:0.2px;
+  }
+  .brand-dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);}
+  .brand h1{
+    font-family:var(--display);font-size:22px;font-weight:700;margin:0;
+    letter-spacing:0.2px;
+  }
+  .brand .tag{
+    font-family:var(--sans);font-size:13px;font-weight:400;color:var(--text-dim);
+    letter-spacing:0.1px;
+  }
+  .theme-toggle{
+    display:flex;align-items:center;justify-content:center;
+    width:38px;height:38px;border-radius:50%;
+    background:var(--panel-2);border:1px solid var(--border);color:var(--accent);
+    cursor:pointer;font-size:16px;line-height:1;flex-shrink:0;
+    transition:border-color .15s ease, transform .15s ease;
+  }
+  .theme-toggle:hover{border-color:var(--accent-dim);transform:translateY(-1px);}
+  .theme-toggle .icon-moon{display:none;}
+  html[data-theme="light"] .theme-toggle .icon-sun{display:none;}
+  html[data-theme="light"] .theme-toggle .icon-moon{display:block;}
+
+  nav.tabs{display:flex;gap:6px;margin-bottom:20px;}
+  nav.tabs button{
+    font-family:var(--sans);font-size:13.5px;font-weight:500;letter-spacing:0.1px;
+    background:transparent;border:1px solid var(--border);color:var(--text-dim);
+    padding:9px 16px;border-radius:var(--radius);cursor:pointer;
+    display:flex;align-items:center;gap:8px;transition:all .15s ease;
+  }
+  nav.tabs button .count{
+    background:var(--panel-2);color:var(--text-faint);border-radius:10px;
+    padding:1px 7px;font-size:11px;
+  }
+  nav.tabs button.active{
+    color:var(--bg);background:var(--accent);border-color:var(--accent);font-weight:600;
+  }
+  nav.tabs button.active .count{background:rgba(15,20,23,0.25);color:var(--bg);}
+  nav.tabs button:not(.active):hover{border-color:var(--accent-dim);color:var(--text);}
+
+  .panel{
+    background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    padding:22px;margin-bottom:20px;box-shadow:var(--card-shadow);
+    transition:box-shadow .2s ease;
+  }
+  .panel h2{font-family:var(--display);font-size:15px;margin:0 0 4px;font-weight:600;}
+  .panel .sub{color:var(--text-dim);font-size:12.5px;margin:0 0 18px;line-height:1.5;}
+
+  /* ---------- dropzone ---------- */
+  .dropzone{
+    border:1.5px dashed var(--border);border-radius:10px;
+    padding:26px 20px;text-align:center;cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+    display:flex;flex-direction:column;align-items:center;gap:8px;
+  }
+  .dropzone:hover, .dropzone.drag{border-color:var(--accent);background:rgba(201,53,69,0.05);}
+  .dropzone svg{opacity:0.65;}
+  .dropzone .dz-title{font-weight:600;font-size:14px;}
+  .dropzone .dz-sub{color:var(--text-faint);font-size:12px;font-family:var(--sans);}
+  input[type=file]{display:none;}
+
+  /* ---------- library ---------- */
+  .library-layout{display:flex;gap:22px;align-items:flex-start;margin-top:16px;}
+  .folder-panel{
+    width:220px;flex-shrink:0;border-right:1px solid var(--border);
+    padding-right:16px;
+  }
+  .folder-panel-head{
+    display:flex;align-items:center;justify-content:space-between;
+    font-family:var(--sans);font-size:11px;letter-spacing:0.5px;text-transform:uppercase;
+    color:var(--text-faint);font-weight:600;margin-bottom:8px;
+  }
+  .folder-panel-head .link-btn{padding:0;font-size:11.5px;}
+  .folder-tree{display:flex;flex-direction:column;gap:2px;}
+  .folder-item{
+    display:flex;align-items:center;justify-content:space-between;gap:6px;
+    padding:7px 8px;border-radius:6px;cursor:pointer;font-size:13px;
+    color:var(--text-dim);transition:background .12s ease, outline-color .12s ease;
+    outline:2px solid transparent;outline-offset:-2px;
+  }
+  .folder-item:hover{background:var(--panel-2);}
+  .folder-item.active{background:var(--accent);color:var(--on-accent);}
+  .folder-item.active .folder-count{color:var(--on-accent);opacity:0.85;}
+  .folder-item.drag-over{outline-color:var(--accent);background:rgba(201,53,69,0.08);}
+  .folder-item .folder-name{
+    display:flex;align-items:center;gap:6px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;min-width:0;
+  }
+  .folder-item .folder-icon{flex-shrink:0;opacity:0.8;}
+  .folder-toggle{
+    background:none;border:none;color:inherit;opacity:0.7;cursor:pointer;
+    font-size:13px;flex-shrink:0;width:20px;height:20px;text-align:center;padding:0;line-height:1;
+    display:flex;align-items:center;justify-content:center;border-radius:4px;
+  }
+  .folder-toggle:hover{opacity:1;background:rgba(0,0,0,0.06);}
+  .folder-item.active .folder-toggle:hover{background:rgba(255,255,255,0.18);}
+  .folder-toggle-spacer{display:inline-block;width:20px;flex-shrink:0;}
+  .folder-item .folder-count{font-size:11px;color:var(--text-faint);flex-shrink:0;}
+  .folder-item .folder-del{
+    background:none;border:none;color:inherit;opacity:0;cursor:pointer;
+    font-size:12px;flex-shrink:0;border-radius:4px;padding:1px 4px;
+  }
+  .folder-item:hover .folder-del{opacity:0.55;}
+  .folder-item .folder-del:hover{opacity:1;color:var(--danger);}
+  .folder-item.active .folder-del:hover{color:#fff;background:rgba(0,0,0,0.15);}
+  .library-main{flex:1;min-width:0;}
+  .library-main-head{display:flex;justify-content:flex-end;margin-bottom:14px;}
+  #importSection .dropzone{margin-bottom:10px;}
+  .card-move{
+    background:var(--panel);border:1px solid var(--border);color:var(--text-dim);
+    font-family:var(--sans);font-size:11px;border-radius:6px;padding:3px 6px;
+    max-width:100%;cursor:pointer;
+  }
+  .lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:0;}
+  .card{
+    background:var(--panel-2);border:1px solid var(--border);border-radius:8px;
+    padding:16px;display:flex;flex-direction:column;gap:10px;cursor:pointer;
+    transition:border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+  }
+  .card:hover{border-color:var(--accent-dim);transform:translateY(-1px);box-shadow:var(--card-shadow-hover);}
+  .card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+  .card-model{font-family:var(--display);font-weight:700;font-size:15px;}
+  .card-mfr{color:var(--text-faint);font-size:11.5px;font-family:var(--sans);margin-top:2px;}
+  .card-del{
+    background:none;border:none;color:var(--text-faint);cursor:pointer;
+    font-size:15px;line-height:1;padding:2px 4px;border-radius:4px;
+  }
+  .card-del:hover{color:var(--danger);background:rgba(161,42,56,0.08);}
+  .spark{width:100%;height:34px;display:block;}
+  .card-stats{
+    display:grid;grid-template-columns:auto 1fr auto 1fr;
+    column-gap:8px;row-gap:7px;font-family:var(--sans);font-size:12px;align-items:baseline;
+  }
+  .card-stats .stat-label{color:var(--text-dim);white-space:nowrap;}
+  .card-stats .stat-value{color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .tag-row{display:flex;flex-wrap:wrap;gap:5px;}
+  .pill{
+    font-family:var(--sans);font-size:10.5px;font-weight:500;letter-spacing:0.1px;
+    background:rgba(201,53,69,0.09);color:var(--accent);border:1px solid rgba(201,53,69,0.3);
+    border-radius:20px;padding:2px 8px;
+  }
+  .pill-muted{background:var(--panel);color:var(--text-faint);border-color:var(--border);}
+  .tag-editor{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;}
+  .tag-editor .field label{font-size:10px;}
+  .tag-editor select{padding:7px 8px;font-size:12px;}
+  .empty{
+    text-align:center;padding:40px 20px;color:var(--text-faint);font-family:var(--sans);
+    font-size:12.5px;
+  }
+
+  /* ---------- export builder ---------- */
+  .field-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:18px;}
+  .field-col{display:flex;flex-direction:column;gap:10px;flex:1;min-width:220px;}
+  .field-col .field{min-width:0;}
+  .field{display:flex;flex-direction:column;gap:6px;min-width:190px;flex:1;}
+  .field label{font-size:11px;font-family:var(--sans);font-weight:600;letter-spacing:0.3px;color:var(--text-dim);text-transform:uppercase;}
+  select, .chiplist{
+    background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+    padding:9px 10px;border-radius:var(--radius);font-family:var(--sans);font-size:13px;
+  }
+  select{width:100%;cursor:pointer;}
+  select:focus{outline:2px solid var(--accent);outline-offset:1px;}
+  .req{color:var(--accent);}
+  .link-btn{
+    background:none;border:none;color:var(--accent);font-family:var(--sans);
+    font-size:12px;font-weight:500;letter-spacing:0.1px;cursor:pointer;padding:6px 0 0;text-align:left;
+  }
+  .link-btn:hover{text-decoration:underline;}
+  .link-btn.remove{color:var(--text-faint);font-weight:400;text-transform:none;letter-spacing:0;margin-left:8px;padding:0;}
+  .link-btn.remove:hover{color:var(--danger);}
+
+  /* ---------- drag-and-drop export layout canvas ---------- */
+  .layout-canvas{
+    display:flex;flex-direction:column;gap:10px;
+    padding:16px;border:1.5px dashed var(--border);border-radius:10px;
+    margin-bottom:16px;min-height:64px;transition:border-color .12s ease;
+  }
+  .layout-canvas.canvas-drag-over{border-color:var(--accent);}
+  .layout-canvas .empty{padding:14px 0;}
+  .layout-row{display:flex;gap:10px;flex-wrap:wrap;padding:4px;border-radius:8px;transition:background .12s ease;}
+  .layout-row.row-drag-over{background:rgba(201,53,69,0.06);}
+  .layout-card{
+    display:flex;align-items:center;gap:10px;
+    background:var(--panel-2);border:1px solid var(--border);border-radius:8px;
+    padding:10px 12px;cursor:grab;font-family:var(--sans);font-size:12.5px;color:var(--text);
+    user-select:none;transition:border-color .12s ease, box-shadow .12s ease, opacity .12s ease;
+    max-width:280px;
+  }
+  .layout-card:active{cursor:grabbing;}
+  .layout-card .drag-handle{color:var(--text-faint);letter-spacing:1px;flex-shrink:0;}
+  .layout-card .layout-card-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .layout-card.dragging{opacity:0.35;}
+  .layout-card.drop-left{box-shadow:inset 3px 0 0 var(--accent);}
+  .layout-card.drop-right{box-shadow:inset -3px 0 0 var(--accent);}
+  .layout-card.drop-top{box-shadow:inset 0 3px 0 var(--accent);}
+  .layout-card.drop-bottom{box-shadow:inset 0 -3px 0 var(--accent);}
+  .layout-card-remove{
+    background:var(--panel);border:none;color:var(--text-faint);border-radius:50%;
+    width:18px;height:18px;line-height:1;cursor:pointer;font-size:11px;flex-shrink:0;
+  }
+  .layout-card-remove:hover{background:var(--danger);color:#fff;}
+
+  .btn{
+    font-family:var(--sans);font-size:13.5px;font-weight:600;letter-spacing:0.1px;
+    background:var(--accent);color:var(--on-accent);border:none;border-radius:var(--radius);
+    padding:11px 18px;cursor:pointer;transition:filter .12s ease;
+  }
+  .btn:hover{filter:brightness(1.08);}
+  .btn:disabled{background:var(--panel-2);color:var(--text-faint);cursor:not-allowed;}
+  .btn.ghost{background:transparent;border:1px solid var(--border);color:var(--text-dim);}
+  .btn.ghost:hover{border-color:var(--accent-dim);color:var(--text);}
+
+  .preview-wrap{margin-top:20px;}
+  .matrix-block{margin-bottom:22px;}
+  table.matrix{border-collapse:collapse;width:100%;font-family:var(--sans);font-size:12.5px;font-variant-numeric:tabular-nums;}
+  table.matrix th, table.matrix td{
+    border:1px solid var(--border);padding:8px 10px;text-align:center;
+  }
+  table.matrix th{background:var(--panel-2);color:var(--text-dim);font-weight:500;}
+  table.matrix th.rowhead{text-align:left;}
+  table.matrix td.na{color:var(--text-faint);}
+  table.matrix.pivot{table-layout:auto;}
+
+  /* ---------- modal ---------- */
+  .overlay{
+    position:fixed;inset:0;background:rgba(6,9,11,0.72);backdrop-filter:blur(2px);
+    display:none;align-items:flex-start;justify-content:center;padding:40px 16px;z-index:50;overflow-y:auto;
+  }
+  .overlay.show{display:flex;}
+  .modal{
+    background:var(--panel);border:1px solid var(--border);border-radius:10px;
+    max-width:760px;width:100%;padding:26px;
+  }
+  .modal-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;}
+  .modal-head h3{font-family:var(--display);font-size:19px;margin:0;}
+  .modal-head .close{background:none;border:none;color:var(--text-faint);font-size:20px;cursor:pointer;}
+  .modal-head .close:hover{color:var(--text);}
+  .modal .file-of{font-family:var(--sans);font-size:11.5px;color:var(--text-faint);margin-bottom:18px;}
+  .spec-grid{display:grid;grid-template-columns:1fr 1fr;column-gap:36px;border-top:1px solid var(--border);}
+  .spec-grid .grp{grid-column:1/-1;font-family:var(--sans);font-size:11px;font-weight:600;letter-spacing:0.6px;
+    text-transform:uppercase;color:var(--accent);padding:14px 0 6px;}
+  .spec-row{display:grid;grid-template-columns:auto 1fr;column-gap:10px;align-items:baseline;
+    padding:7px 0;border-bottom:1px solid var(--border);font-size:12.5px;}
+  .spec-row span:first-child{color:var(--text-dim);font-size:11.5px;white-space:nowrap;}
+  .spec-row span:last-child{font-weight:600;color:var(--text);text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .modal svg.spark-lg{width:100%;height:90px;margin-top:8px;}
+
+  footer.foot{
+    text-align:center;color:var(--text-faint);font-family:var(--sans);font-size:12px;
+    margin-top:30px;
+  }
+
+  @media (max-width:640px){
+    .spec-grid{grid-template-columns:1fr;}
+    .card-stats{grid-template-columns:auto 1fr;}
+    .library-layout{flex-direction:column;}
+    .folder-panel{width:100%;border-right:none;border-bottom:1px solid var(--border);padding-right:0;padding-bottom:14px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <header class="top">
+    <div class="brand">
+      <div class="brand-mark">
+        <span class="brand-dot"></span>
+        <h1>Radio Spec Console</h1>
+        <span class="version-badge" id="versionBadge"></span>
+      </div>
+      <span class="tag">Import radio spec files, manage your library, and export tables</span>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light and dark mode">
+      <span class="icon-sun">☀</span>
+      <span class="icon-moon">☾</span>
+    </button>
+  </header>
+
+  <nav class="tabs">
+    <button class="active" data-tab="library">Library <span class="count" id="libCount">0</span></button>
+    <button data-tab="export">Export</button>
+  </nav>
+
+  <section id="tab-library">
+    <div class="panel">
+      <h2>Device library</h2>
+      <p class="sub">Organize devices into directories. Click a directory to see the devices inside it; click a device card for full spec detail.</p>
+      <div class="library-layout">
+        <aside class="folder-panel">
+          <div class="folder-panel-head">
+            <span>Directories</span>
+            <button type="button" class="link-btn" id="newFolderBtn">+ New</button>
+          </div>
+          <div id="folderTree" class="folder-tree"></div>
+        </aside>
+        <div class="library-main">
+          <div class="library-main-head" id="libGridHead">
+            <button type="button" class="btn ghost" id="addDeviceBtn">+ Add new device</button>
+          </div>
+
+          <div id="importSection" style="display:none;">
+            <p class="sub">Drop one or more <code>.raf</code> Pathloss radio spec files, or click to browse. Each file becomes one device, filed into the directory you currently have open.</p>
+            <div class="dropzone" id="dropzone">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+              <div class="dz-title">Drop .raf files here, or click to browse</div>
+              <div class="dz-sub">PL50_ASCII_RADIO_SPEC — multiple files supported</div>
+              <input type="file" id="fileInput" accept=".raf,.txt" multiple>
+            </div>
+            <button type="button" class="link-btn" id="cancelImportBtn">&larr; Back to library</button>
+          </div>
+
+          <div id="libGrid" class="lib-grid"></div>
+          <div id="libEmpty" class="empty">No devices yet — click "+ Add new device" to populate your library.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-export" style="display:none;">
+    <div class="panel">
+      <h2>Build export table</h2>
+      <p class="sub">Pick a radio family to filter the pool, define your row/column layer (Layer 1) and an optional differentiator (Layer 2), then pick the parameter to populate the cells — mirroring the layered table format from the RFP table generator spec.</p>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Threshold</label>
+          <select id="fThreshold">
+            <option value="Guarantee" selected>Guarantee</option>
+            <option value="Typical">Typical</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Standard</label>
+          <select id="fStandard">
+            <option value="ETSI" selected>ETSI</option>
+            <option value="FCC">FCC</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Compression</label>
+          <select id="fCompression">
+            <option value="No" selected>No</option>
+            <option value="HDD">HDD</option>
+            <option value="L2">L2</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Ethernet layer</label>
+          <select id="fEthernet">
+            <option value="L1" selected>L1</option>
+            <option value="L2">L2</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-row" style="margin-top:18px;">
+        <div class="field">
+          <label>Radio family</label>
+          <select id="familySelect">
+            <option value="All">All families</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-row" style="margin-top:6px;">
+        <div class="field">
+          <label>Rows <span class="req">*</span></label>
+          <select id="rowAxis1">
+            <option value="bw" selected>Channel Bandwidth</option>
+            <option value="mod">Modulation</option>
+            <option value="freq">Frequency (GHz band)</option>
+            <option value="model">Model</option>
+            <option value="threshold">Threshold</option>
+            <option value="standard">Standard</option>
+            <option value="compression">Compression</option>
+            <option value="ethernet">Ethernet Layer</option>
+          </select>
+          <button type="button" class="link-btn" id="addRowLayer">+ Add row layer</button>
+        </div>
+        <div class="field" id="rowLayer2Field" style="display:none;">
+          <label>Rows — additional layer <button type="button" class="link-btn remove" id="removeRowLayer">remove</button></label>
+          <select id="rowAxis2">
+            <option value="bw">Channel Bandwidth</option>
+            <option value="mod" selected>Modulation</option>
+            <option value="freq">Frequency (GHz band)</option>
+            <option value="model">Model</option>
+            <option value="threshold">Threshold</option>
+            <option value="standard">Standard</option>
+            <option value="compression">Compression</option>
+            <option value="ethernet">Ethernet Layer</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Columns <span class="req">*</span></label>
+          <select id="colAxis1">
+            <option value="bw">Channel Bandwidth</option>
+            <option value="mod">Modulation</option>
+            <option value="freq" selected>Frequency (GHz band)</option>
+            <option value="model">Model</option>
+            <option value="threshold">Threshold</option>
+            <option value="standard">Standard</option>
+            <option value="compression">Compression</option>
+            <option value="ethernet">Ethernet Layer</option>
+          </select>
+          <button type="button" class="link-btn" id="addColLayer">+ Add column layer</button>
+        </div>
+        <div class="field" id="colLayer2Field" style="display:none;">
+          <label>Columns — additional layer <button type="button" class="link-btn remove" id="removeColLayer">remove</button></label>
+          <select id="colAxis2">
+            <option value="bw">Channel Bandwidth</option>
+            <option value="mod">Modulation</option>
+            <option value="freq">Frequency (GHz band)</option>
+            <option value="model" selected>Model</option>
+            <option value="threshold">Threshold</option>
+            <option value="standard">Standard</option>
+            <option value="compression">Compression</option>
+            <option value="ethernet">Ethernet Layer</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field" style="flex:1.4;">
+          <label>Parameter</label>
+          <select id="paramSelect">
+            <option value="txMax">Max Tx Power (dBm)</option>
+            <option value="txMin">Min Tx Power (dBm)</option>
+            <option value="atpc">ATPC Range (dB)</option>
+            <option value="capacity">Ethernet / Radio Capacity (Mbps)</option>
+            <option value="bwChannel">Channel Bandwidth (MHz)</option>
+            <option value="bw3dbTx">3dB Bandwidth Tx (MHz)</option>
+            <option value="bw3dbRx">3dB Bandwidth Rx (MHz)</option>
+            <option value="rxThreshold">RX Threshold (dBm)</option>
+            <option value="sysGain">System Gain (dB) — Max Tx − RX Threshold</option>
+            <option value="dispersiveFM">Dispersive Fade Margin (dB)</option>
+            <option value="noiseFigure">Noise Figure (dB)</option>
+            <option value="emission">Emission Designator</option>
+          </select>
+        </div>
+        <div class="field" id="berField" style="display:none;">
+          <label>BER reference (for RX Threshold / System Gain)</label>
+          <select id="berSelect"></select>
+        </div>
+      </div>
+
+      <div class="preview-wrap" id="preview"></div>
+
+      <div class="field-row" style="align-items:center;gap:10px;margin-top:20px;margin-bottom:6px;">
+        <button class="btn ghost" id="addTableBtn" type="button">+ Add this table to sheet</button>
+      </div>
+      <p class="sub" id="queueInfo" style="margin-top:-4px;">No tables staged yet — click "+ Add this table to sheet" to stage the table above.</p>
+
+      <div class="layout-canvas" id="layoutCanvas"></div>
+
+      <button class="btn" id="exportBtn" disabled>Export to Excel</button>
+    </div>
+  </section>
+
+  <footer class="foot">Runs entirely in your browser. Files are parsed locally and kept in this browser's storage — nothing is uploaded anywhere.</footer>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modalBody"></div>
+</div>
+
+<script>
+/* ============================== VERSION ============================== */
+// Bump this with each meaningful update to the app.
+const APP_VERSION = '1.0';
+document.getElementById('versionBadge').textContent = 'v' + APP_VERSION;
+
+/* ============================== STATE ============================== */
+let DEVICES = [];
+try{
+  const saved = localStorage.getItem('rafDevices');
+  if(saved) DEVICES = JSON.parse(saved);
+}catch(e){ DEVICES = []; }
+
+let FOLDERS = [];   // [{id, name, parentId}]
+try{
+  const savedFolders = localStorage.getItem('rafFolders');
+  if(savedFolders) FOLDERS = JSON.parse(savedFolders);
+}catch(e){ FOLDERS = []; }
+
+let currentFolderId = null; // null = "Unspecified" (unfiled) view
+let folderCounter = 0;
+let collapsedFolders = new Set();
+try{
+  const savedCollapsed = localStorage.getItem('rafCollapsedFolders');
+  if(savedCollapsed) collapsedFolders = new Set(JSON.parse(savedCollapsed));
+}catch(e){ collapsedFolders = new Set(); }
+function persistCollapsed(){
+  try{ localStorage.setItem('rafCollapsedFolders', JSON.stringify(Array.from(collapsedFolders))); }catch(e){}
+}
+let dragDeviceId = null;
+
+function persist(){
+  try{ localStorage.setItem('rafDevices', JSON.stringify(DEVICES)); }catch(e){}
+}
+function persistFolders(){
+  try{ localStorage.setItem('rafFolders', JSON.stringify(FOLDERS)); }catch(e){}
+}
+
+/* ============================== PARSER ============================== */
+function splitPositional(v){
+  if(v===undefined || v===null) return [];
+  return v.split(',').map(s=>s.trim());
+}
+function splitCompact(v){
+  return splitPositional(v).filter(s=>s!=='');
+}
+function num(v){
+  const n = parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+
+function parseRAF(text, fileName){
+  const lines = text.split(/\r\n|\r|\n/);
+  const raw = {};
+  let formatVersion = '';
+  let i = 0;
+
+  // first non-empty line: format identifier (no colon)
+  while(i<lines.length && lines[i].trim()===''){ i++; }
+  if(i<lines.length && !lines[i].includes(':')){
+    formatVersion = lines[i].trim();
+    i++;
+  }
+
+  while(i < lines.length){
+    let line = lines[i];
+    const trimmed = line.trim();
+    if(trimmed===''){ i++; continue; }
+    if(trimmed.startsWith('//')){ i++; continue; }
+
+    const m = line.match(/^([^:]+):\s?(.*)$/);
+    if(!m){ i++; continue; }
+    let key = m[1].trim();
+    let value = m[2];
+    const cIdx = value.indexOf('//');
+    if(cIdx >= 0) value = value.slice(0, cIdx);
+    value = value.trim();
+
+    if(key === 'TX_EMISSION'){
+      const count = parseInt(value) || 0;
+      const points = [];
+      i++;
+      while(i < lines.length && points.length < count){
+        const pl = lines[i].trim();
+        if(pl===''){ i++; continue; }
+        const parts = pl.split(',').map(s=>s.trim());
+        if(parts.length>=2 && !isNaN(parseFloat(parts[0]))){
+          points.push([parseFloat(parts[0]), parseFloat(parts[1])]);
+          i++;
+        } else break;
+      }
+      raw['TX_EMISSION'] = points;
+      continue;
+    }
+    raw[key] = value;
+    i++;
+  }
+
+  return buildDevice(raw, formatVersion, fileName);
+}
+
+function buildDevice(raw, formatVersion, fileName){
+  const freqParts = splitCompact(raw.FREQUENCY_RANGE).map(num);
+  const txNames = splitPositional(raw.TX_POWER_OPTIONS_NAME);
+  const txVals  = splitPositional(raw.TX_POWER_OPTIONS_DBM);
+  const txMins  = splitPositional(raw.TX_POWER_MIN_OPTIONS_DBM);
+  const atpcOpt = splitPositional(raw.ATPC_OPTIONS_DB);
+  const txPowerOptions = txNames.map((n,idx)=>({
+    name: n || null,
+    dbm: num(txVals[idx]),
+    minDbm: num(txMins[idx]),
+    atpc: num(atpcOpt[idx])
+  })).filter(o=>o.dbm!==null);
+
+  const rxDesc = splitPositional(raw.RX_THRESHOLD_DESCRIPTION);
+  const rxBer  = splitPositional(raw.RX_THRESHOLD_BER);
+  const rxDbm  = splitPositional(raw.RX_THRESHOLD_DBM);
+  const maxRx  = splitPositional(raw.MAXIMUM_RXSIGNAL_DBM);
+  const dispFM = splitPositional(raw.DISPERSIVE_FM_DB);
+  const rxThresholds = rxDbm.map((v,idx)=>({
+    description: (rxDesc[idx]||'').trim() || ('Ref ' + (idx+1)),
+    ber: rxBer[idx] ? rxBer[idx].trim() : null,
+    dbm: num(v),
+    maxRxSignal: num(maxRx[idx]),
+    dispersiveFM: num(dispFM[idx])
+  })).filter(t=>t.dbm!==null);
+
+  const txRange = splitCompact(raw.TX_POWER_RANGE_DBM).map(num);
+
+  const device = {
+    id: 'dev_' + Date.now() + '_' + Math.random().toString(36).slice(2,8),
+    fileName: fileName,
+    uploadedAt: new Date().toISOString(),
+    formatVersion: formatVersion || 'PL50_ASCII_RADIO_SPEC',
+    manufacturer: raw.MANUFACTURER || 'N/A',
+    model: raw.MODEL || fileName.replace(/\.raf$/i,''),
+    radioId: raw.RADIO_ID || 'N/A',
+    radioType: raw.RADIO_TYPE || 'N/A',
+    applicationType: raw.APPLICATION_TYPE || 'N/A',
+    revisionNum: raw.REVISION_NUM || 'N/A',
+    revisionDate: raw.REVISION_DATE || 'N/A',
+    freqLow: freqParts[0] ?? null,
+    freqHigh: freqParts[1] ?? null,
+    emissionDesignator: raw.EMISSION_DESIGNATOR || 'N/A',
+    txRateMbps: raw.TXDATA_RATE_MBS || 'N/A',
+    rxRateMbps: raw.RXDATA_RATE_MBS || 'N/A',
+    radioCapacity: num(splitCompact(raw.RADIO_CAPACITY)[0]),
+    modulation: raw.MODULATION || 'N/A',
+    bwChannel: num(raw.BANDWIDTH_CHANNEL_MHZ),
+    bw99pc: num(raw.BANDWIDTH_99PC_MHZ),
+    bw3dbTx: num(raw.BANDWIDTH_3DB_TX_MHZ),
+    bw3dbRx: num(raw.BANDWIDTH_3DB_RX_MHZ),
+    txPowerOptions: txPowerOptions,
+    txPowerMax: txPowerOptions.length ? Math.max(...txPowerOptions.map(o=>o.dbm)) : (txRange[1] ?? null),
+    txPowerMin: txRange[0] ?? (txPowerOptions.length? Math.min(...txPowerOptions.map(o=>o.minDbm).filter(v=>v!==null)) : null),
+    atpcRange: num(raw.ATPC_RANGE_DB),
+    atpcStep: num(raw.ATPC_STEP_SIZE_DB),
+    rxThresholds: rxThresholds,
+    noiseFigure: num(raw['NOISE FIGURE_DB']),
+    tToIRatio: num(raw.TtoI_RATIO),
+    cToIBer6: num(raw['CtoI_RATIO_BER10-6_3DB']),
+    cToIBer3: num(raw['CtoI_RATIO_BER10-3_3DB']),
+    noiseFloor: num(raw.NOISE_FLOOR_KTBF_DBM),
+    txEmission: raw.TX_EMISSION || [],
+    comments: [1,2,3,4,5,6].map(n=>raw['COMMENT_'+n]).filter(c=>c && c.trim()!=='')
+  };
+
+  // Classification tags used by the export filter/pivot builder.
+  // The .raf format doesn't carry Standard/Compression/Ethernet-layer as
+  // structured fields, so those default to "Unspecified" and are editable
+  // per device from the detail view. Threshold basis is auto-detected from
+  // the file's COMMENT lines when possible (e.g. "Guarantee" / "Typical").
+  device.thresholdType = detectThresholdType(device.comments);
+  device.standard = 'Unspecified';
+  device.compression = 'Unspecified';
+  device.ethernetLayer = 'Unspecified';
+
+  // Directory placement: newly imported devices land in whichever directory
+  // is currently marked/open in the tree. If "Unspecified" is open (no real
+  // directory selected), they land there (folderId null) instead.
+  device.folderId = (typeof currentFolderId !== 'undefined' && currentFolderId) ? currentFolderId : null;
+
+  return device;
+}
+
+function detectThresholdType(comments){
+  const joined = (comments||[]).join(' ').toLowerCase();
+  if(/guarant/.test(joined)) return 'Guarantee';
+  if(/typical/.test(joined)) return 'Typical';
+  return 'Unspecified';
+}
+
+/* ============================== HELPERS ============================== */
+function freqLabel(d){
+  if(d.freqLow==null || d.freqHigh==null) return 'N/A';
+  return d.freqLow + '–' + d.freqHigh + ' MHz';
+}
+// Nominal band used for grouping in the export table: floor of the average
+// of min/max frequency, in GHz (e.g. 5850–7130 MHz -> avg 6490 MHz -> 6 GHz).
+function freqBand(d){
+  if(d.freqLow==null || d.freqHigh==null) return 'N/A';
+  const avgGHz = ((d.freqLow + d.freqHigh) / 2) / 1000;
+  return Math.floor(avgGHz) + ' GHz';
+}
+function fmt(v, suffix){
+  if(v===null || v===undefined || v==='' || Number.isNaN(v)) return 'N/A';
+  return v + (suffix||'');
+}
+let sparkIdCounter = 0;
+
+// Maps a device's TX_EMISSION points (offset MHz, dBc) onto a w×h box using
+// that device's own min/max on both axes — each plot is scaled to its own
+// data, not a shared/fixed scale, so the mask shape always fills its box.
+// Padding keeps the curve's own peak/trough inside the box instead of
+// touching the exact edge, where the stroke would otherwise get clipped.
+function sparkGeometry(points, w, h){
+  const padX = Math.max(2, w*0.01);
+  const padY = Math.max(3, h*0.09);
+  const xs = points.map(p=>p[0]), ys = points.map(p=>p[1]);
+  const minX=Math.min(...xs), maxX=Math.max(...xs);
+  const minY=Math.min(...ys), maxY=Math.max(...ys);
+  const rangeX=(maxX-minX)||1, rangeY=(maxY-minY)||1;
+  const innerW = w - padX*2, innerH = h - padY*2;
+  const coords = points.map(p=>[
+    padX + ((p[0]-minX)/rangeX) * innerW,
+    padY + (innerH - ((p[1]-minY)/rangeY) * innerH)
+  ]);
+  return { coords, baselineY: h - padY };
+}
+
+function sparkSvg(points, cls, w, h){
+  if(!points || points.length<2) return '<svg class="'+cls+'" viewBox="0 0 '+w+' '+h+'"></svg>';
+  const { coords, baselineY } = sparkGeometry(points, w, h);
+  const line = coords.map((c,i)=> (i===0?'M':'L') + c[0].toFixed(1) + ',' + c[1].toFixed(1)).join(' ');
+  const firstX = coords[0][0].toFixed(1), lastX = coords[coords.length-1][0].toFixed(1);
+  const area = line + ' L' + lastX + ',' + baselineY.toFixed(1) + ' L' + firstX + ',' + baselineY.toFixed(1) + ' Z';
+  const gid = 'sparkfill' + (++sparkIdCounter);
+  return '<svg class="'+cls+'" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none">'+
+    '<defs><linearGradient id="'+gid+'" x1="0" y1="0" x2="0" y2="1">'+
+      '<stop offset="0%" stop-color="var(--accent-2)" stop-opacity="0.32"/>'+
+      '<stop offset="100%" stop-color="var(--accent-2)" stop-opacity="0"/>'+
+    '</linearGradient></defs>'+
+    '<path d="'+area+'" fill="url(#'+gid+')" stroke="none"/>'+
+    '<path d="'+line+'" fill="none" stroke="var(--accent-2)" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>'+
+    '</svg>';
+}
+function tagPill(v){
+  const unset = !v || v==='Unspecified';
+  return `<span class="pill${unset?' pill-muted':''}">${unset?'—':v}</span>`;
+}
+
+/* ============================== RENDER: LIBRARY ============================== */
+function renderLibrary(){
+  document.getElementById('libCount').textContent = DEVICES.length;
+  const grid = document.getElementById('libGrid');
+  const empty = document.getElementById('libEmpty');
+  grid.innerHTML = '';
+
+  const visible = DEVICES.filter(d => (d.folderId || null) === currentFolderId);
+
+  if(visible.length===0){
+    empty.style.display = 'block';
+    empty.textContent = DEVICES.length===0
+      ? 'No devices yet — import a .raf file above to populate your library.'
+      : (currentFolderId===null
+          ? 'No unspecified devices — everything has been filed into a directory.'
+          : 'No devices in this directory yet — drag a card here, or use its Move menu.');
+  } else {
+    empty.style.display = 'none';
+  }
+
+  visible.forEach(d=>{
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.draggable = true;
+    card.dataset.id = d.id;
+    card.innerHTML = `
+      <div class="card-top">
+        <div>
+          <div class="card-model">${d.model}</div>
+          <div class="card-mfr">${d.manufacturer}</div>
+        </div>
+        <button class="card-del" title="Remove" data-id="${d.id}">✕</button>
+      </div>
+      ${sparkSvg(d.txEmission, 'spark', 240, 34)}
+      <div class="card-stats">
+        <span class="stat-label">Freq</span><span class="stat-value">${freqLabel(d)}</span>
+        <span class="stat-label">BW</span><span class="stat-value">${fmt(d.bwChannel,' MHz')}</span>
+        <span class="stat-label">Mod</span><span class="stat-value">${d.modulation}</span>
+        <span class="stat-label">Tx Max</span><span class="stat-value">${fmt(d.txPowerMax,' dBm')}</span>
+      </div>
+      <div class="tag-row">
+        ${tagPill(d.thresholdType)}${tagPill(d.standard)}${tagPill(d.compression)}${tagPill(d.ethernetLayer)}
+      </div>
+      <select class="card-move" data-id="${d.id}" title="Move to directory">
+        ${folderOptionsHtml(d.folderId)}
+      </select>
+    `;
+    card.addEventListener('click', (e)=>{
+      if(e.target.classList.contains('card-del') || e.target.classList.contains('card-move')) return;
+      openDetail(d.id);
+    });
+    card.addEventListener('dragstart', (e)=>{
+      dragDeviceId = d.id;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', d.id);
+      card.classList.add('dragging');
+    });
+    card.addEventListener('dragend', ()=>{
+      dragDeviceId = null;
+      card.classList.remove('dragging');
+    });
+    grid.appendChild(card);
+  });
+
+  grid.querySelectorAll('.card-del').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      DEVICES = DEVICES.filter(x=>x.id!==btn.dataset.id);
+      persist();
+      renderLibrary();
+      renderDevSelectors();
+    });
+  });
+
+  grid.querySelectorAll('.card-move').forEach(sel=>{
+    sel.addEventListener('click', e=> e.stopPropagation());
+    sel.addEventListener('change', ()=>{
+      const dev = DEVICES.find(x=>x.id===sel.dataset.id);
+      if(dev){
+        dev.folderId = sel.value === '' ? null : sel.value;
+        persist();
+        renderLibrary();
+        renderFolderTree();
+      }
+    });
+  });
+
+  renderFolderTree();
+}
+
+/* ============================== FOLDER TREE ============================== */
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function folderOptionsHtml(selectedId){
+  let html = '<option value=""' + (!selectedId ? ' selected' : '') + '>Unspecified</option>';
+  (function walk(parentId, depth){
+    FOLDERS.filter(f=>f.parentId===parentId).forEach(f=>{
+      const indent = '\u2014 '.repeat(depth); // — em-dash indent per nesting level
+      html += '<option value="'+f.id+'"'+(selectedId===f.id?' selected':'')+'>'+indent+escapeHtml(f.name)+'</option>';
+      walk(f.id, depth+1);
+    });
+  })(null, 0);
+  return html;
+}
+
+function countDirect(folderId){
+  return DEVICES.filter(d=>d.folderId===folderId).length;
+}
+
+function renderFolderTree(){
+  const wrap = document.getElementById('folderTree');
+  if(!wrap) return;
+
+  let html = '<div class="folder-item'+(currentFolderId===null?' active':'')+'" data-folder="" style="padding-left:8px;">'+
+    '<span class="folder-name"><span class="folder-toggle-spacer"></span><span class="folder-icon">\u{1F5C2}</span>Unspecified</span>'+
+    '<span class="folder-count">'+countDirect(null)+'</span>'+
+  '</div>';
+
+  (function walk(parentId, depth){
+    FOLDERS.filter(f=>f.parentId===parentId).forEach(f=>{
+      const hasKids = FOLDERS.some(k=>k.parentId===f.id);
+      const isCollapsed = collapsedFolders.has(f.id);
+      const toggle = hasKids
+        ? '<button type="button" class="folder-toggle" data-toggle="'+f.id+'" title="'+(isCollapsed?'Expand':'Minimize')+'">'+(isCollapsed?'\u25B8':'\u25BE')+'</button>'
+        : '<span class="folder-toggle-spacer"></span>';
+      html += '<div class="folder-item'+(currentFolderId===f.id?' active':'')+'" data-folder="'+f.id+'" style="padding-left:'+(8+depth*16)+'px;">'+
+        '<span class="folder-name">'+toggle+'<span class="folder-icon">\u{1F4C1}</span>'+escapeHtml(f.name)+'</span>'+
+        '<span style="display:flex;align-items:center;gap:4px;">'+
+          '<span class="folder-count">'+countDirect(f.id)+'</span>'+
+          '<button type="button" class="folder-del" data-folder-del="'+f.id+'" title="Delete directory">\u2715</button>'+
+        '</span>'+
+      '</div>';
+      if(!isCollapsed) walk(f.id, depth+1);
+    });
+  })(null, 1);
+
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll('[data-toggle]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const id = btn.dataset.toggle;
+      if(collapsedFolders.has(id)) collapsedFolders.delete(id);
+      else collapsedFolders.add(id);
+      persistCollapsed();
+      renderFolderTree();
+    });
+  });
+
+  wrap.querySelectorAll('.folder-item').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      if(e.target.closest('[data-folder-del]') || e.target.closest('[data-toggle]')) return;
+      currentFolderId = el.dataset.folder === '' ? null : el.dataset.folder;
+      if(typeof showGridView === 'function') showGridView();
+      else renderLibrary();
+    });
+    el.addEventListener('dragover', (e)=>{
+      e.preventDefault();
+      el.classList.add('drag-over');
+    });
+    el.addEventListener('dragleave', ()=> el.classList.remove('drag-over'));
+    el.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      el.classList.remove('drag-over');
+      if(!dragDeviceId) return;
+      const dev = DEVICES.find(x=>x.id===dragDeviceId);
+      if(dev){
+        dev.folderId = el.dataset.folder === '' ? null : el.dataset.folder;
+        persist();
+        renderLibrary();
+      }
+      dragDeviceId = null;
+    });
+  });
+
+  wrap.querySelectorAll('[data-folder-del]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      deleteFolder(btn.dataset.folderDel);
+    });
+  });
+}
+
+function collectDescendantIds(folderId){
+  const ids = [folderId];
+  FOLDERS.filter(f=>f.parentId===folderId).forEach(child=>{
+    ids.push(...collectDescendantIds(child.id));
+  });
+  return ids;
+}
+
+function deleteFolder(folderId){
+  const folder = FOLDERS.find(f=>f.id===folderId);
+  if(!folder) return;
+  const idsToRemove = collectDescendantIds(folderId);
+  const affectedCount = DEVICES.filter(d=>idsToRemove.includes(d.folderId)).length;
+  const msg = affectedCount > 0
+    ? 'Delete "'+folder.name+'"'+(idsToRemove.length>1?' and its subdirectories':'')+'? '+affectedCount+' device(s) inside will move to Unspecified.'
+    : 'Delete "'+folder.name+'"'+(idsToRemove.length>1?' and its subdirectories':'')+'?';
+  if(!confirm(msg)) return;
+
+  DEVICES.forEach(d=>{ if(idsToRemove.includes(d.folderId)) d.folderId = null; });
+  FOLDERS = FOLDERS.filter(f=>!idsToRemove.includes(f.id));
+  if(idsToRemove.includes(currentFolderId)) currentFolderId = null;
+
+  persist();
+  persistFolders();
+  renderLibrary();
+}
+
+document.getElementById('newFolderBtn').addEventListener('click', ()=>{
+  const parent = FOLDERS.find(f=>f.id===currentFolderId);
+  const name = prompt('New directory name' + (parent ? ' (inside "'+parent.name+'")' : '') + ':');
+  if(!name || !name.trim()) return;
+  const id = 'dir_' + (++folderCounter) + '_' + Date.now();
+  FOLDERS.push({ id, name: name.trim(), parentId: currentFolderId });
+  persistFolders();
+  renderLibrary();
+});
+
+function openDetail(id){
+  const d = DEVICES.find(x=>x.id===id);
+  if(!d) return;
+  const body = document.getElementById('modalBody');
+  const rxRows = d.rxThresholds.map(t=>`
+    <div class="spec-row"><span>${t.description}${t.ber?(' ('+t.ber+')'):''}</span><span>${fmt(t.dbm,' dBm')}</span></div>
+  `).join('');
+  const txRows = d.txPowerOptions.map(o=>`
+    <div class="spec-row"><span>${o.name||'Power option'}</span><span>${fmt(o.dbm,' dBm')} / min ${fmt(o.minDbm,' dBm')}</span></div>
+  `).join('');
+  const commentRows = d.comments.map(c=>`<div class="spec-row"><span>Comment</span><span>${c}</span></div>`).join('');
+
+  body.innerHTML = `
+    <div class="modal-head">
+      <div>
+        <h3>${d.model}</h3>
+      </div>
+      <button class="close" id="closeModal">×</button>
+    </div>
+    <div class="file-of">${d.fileName} · imported ${new Date(d.uploadedAt).toLocaleString()}</div>
+    ${sparkSvg(d.txEmission, 'spark-lg', 700, 90)}
+
+    <div class="grp" style="padding-top:4px;">Classification tags <span style="color:var(--text-faint);text-transform:none;letter-spacing:0;">— for future use in the Excel export</span></div>
+    <div class="tag-editor">
+      <div class="field">
+        <label>Threshold</label>
+        <select data-tag="thresholdType">
+          ${['Unspecified','Guarantee','Typical'].map(o=>`<option value="${o}" ${d.thresholdType===o?'selected':''}>${o}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label>Standard</label>
+        <select data-tag="standard">
+          ${['Unspecified','ETSI','FCC'].map(o=>`<option value="${o}" ${d.standard===o?'selected':''}>${o}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label>Compression</label>
+        <select data-tag="compression">
+          ${['Unspecified','No','HDD','L2'].map(o=>`<option value="${o}" ${d.compression===o?'selected':''}>${o}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label>Ethernet layer</label>
+        <select data-tag="ethernetLayer">
+          ${['Unspecified','L1','L2'].map(o=>`<option value="${o}" ${d.ethernetLayer===o?'selected':''}>${o}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    <div class="spec-grid">
+      <div class="grp">Identification</div>
+      <div class="spec-row"><span>Manufacturer</span><span>${d.manufacturer}</span></div>
+      <div class="spec-row"><span>Radio ID</span><span>${d.radioId}</span></div>
+      <div class="spec-row"><span>Radio Type</span><span>${d.radioType}</span></div>
+      <div class="spec-row"><span>Revision</span><span>${d.revisionNum}</span></div>
+      <div class="spec-row"><span>Revision Date</span><span>${d.revisionDate}</span></div>
+      <div class="spec-row"><span>Format</span><span>${d.formatVersion}</span></div>
+
+      <div class="grp">RF &amp; Channel</div>
+      <div class="spec-row"><span>Frequency Range</span><span>${freqLabel(d)}</span></div>
+      <div class="spec-row"><span>Emission Designator</span><span>${d.emissionDesignator}</span></div>
+      <div class="spec-row"><span>Channel Bandwidth</span><span>${fmt(d.bwChannel,' MHz')}</span></div>
+      <div class="spec-row"><span>99% Bandwidth</span><span>${fmt(d.bw99pc,' MHz')}</span></div>
+      <div class="spec-row"><span>3dB BW (Tx / Rx)</span><span>${fmt(d.bw3dbTx)} / ${fmt(d.bw3dbRx)} MHz</span></div>
+      <div class="spec-row"><span>Modulation</span><span>${d.modulation}</span></div>
+
+      <div class="grp">Capacity</div>
+      <div class="spec-row"><span>Tx / Rx Data Rate</span><span>${d.txRateMbps} / ${d.rxRateMbps}</span></div>
+      <div class="spec-row"><span>Radio Capacity</span><span>${fmt(d.radioCapacity,' Mbps')}</span></div>
+
+      <div class="grp">Transmit Power</div>
+      ${txRows || '<div class="spec-row"><span>No Tx power options parsed</span><span>—</span></div>'}
+      <div class="spec-row"><span>ATPC Range / Step</span><span>${fmt(d.atpcRange,' dB')} / ${fmt(d.atpcStep,' dB')}</span></div>
+
+      <div class="grp">Receiver Thresholds</div>
+      ${rxRows || '<div class="spec-row"><span>No thresholds parsed</span><span>—</span></div>'}
+      <div class="spec-row"><span>Noise Figure</span><span>${fmt(d.noiseFigure,' dB')}</span></div>
+      <div class="spec-row"><span>Noise Floor (KTBF)</span><span>${fmt(d.noiseFloor,' dBm')}</span></div>
+      <div class="spec-row"><span>C/I @BER1E-6 / 1E-3</span><span>${fmt(d.cToIBer6)} / ${fmt(d.cToIBer3)} dB</span></div>
+
+      ${commentRows ? '<div class="grp">Notes</div>' + commentRows : ''}
+    </div>
+  `;
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('closeModal').addEventListener('click', closeModal);
+  body.querySelectorAll('[data-tag]').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      d[sel.dataset.tag] = sel.value;
+      persist();
+      renderLibrary();
+      renderExportPreview();
+    });
+  });
+}
+function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
+document.getElementById('overlay').addEventListener('click', (e)=>{
+  if(e.target.id==='overlay') closeModal();
+});
+
+/* ============================== IMPORT ============================== */
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+dropzone.addEventListener('click', ()=>fileInput.click());
+dropzone.addEventListener('dragover', e=>{ e.preventDefault(); dropzone.classList.add('drag'); });
+dropzone.addEventListener('dragleave', ()=> dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', e=>{
+  e.preventDefault(); dropzone.classList.remove('drag');
+  handleFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener('change', e=> handleFiles(e.target.files));
+
+function showImportView(){
+  document.getElementById('importSection').style.display = '';
+  document.getElementById('libGridHead').style.display = 'none';
+  document.getElementById('libGrid').style.display = 'none';
+  document.getElementById('libEmpty').style.display = 'none';
+}
+function showGridView(){
+  document.getElementById('importSection').style.display = 'none';
+  document.getElementById('libGridHead').style.display = '';
+  document.getElementById('libGrid').style.display = '';
+  renderLibrary();
+}
+document.getElementById('addDeviceBtn').addEventListener('click', showImportView);
+document.getElementById('cancelImportBtn').addEventListener('click', showGridView);
+
+function handleFiles(fileList){
+  const files = Array.from(fileList);
+  let pending = files.length;
+  if(!pending) return;
+  files.forEach(f=>{
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{
+        const dev = parseRAF(reader.result, f.name);
+        DEVICES.push(dev);
+      }catch(err){
+        console.error('Failed to parse', f.name, err);
+      }
+      pending--;
+      if(pending===0){
+        persist();
+        renderDevSelectors();
+        renderExportPreview();
+        showGridView();
+      }
+    };
+    reader.readAsText(f);
+  });
+  fileInput.value = '';
+}
+
+/* ============================== TABS ============================== */
+document.querySelectorAll('nav.tabs button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.getElementById('tab-library').style.display = tab==='library' ? '' : 'none';
+    document.getElementById('tab-export').style.display = tab==='export' ? '' : 'none';
+    if(tab==='export'){ renderDevSelectors(); renderExportPreview(); }
+  });
+});
+
+/* ============================== EXPORT BUILDER ============================== */
+/* Radio family = the script/radio ID up to (not including) the first dash,
+   e.g. "IP50C-6-56X-0" -> "IP50C". Falls back to model name if radioId is
+   unavailable. Used to filter the export pool to one exact family. */
+function familyOf(d){
+  const src = (d.radioId && d.radioId !== 'N/A') ? d.radioId : d.model;
+  if(!src) return 'Unknown';
+  const idx = src.indexOf('-');
+  return idx === -1 ? src : src.slice(0, idx);
+}
+
+function renderDevSelectors(){
+  const familySelect = document.getElementById('familySelect');
+  const prevValue = familySelect.value || 'All';
+  const families = Array.from(new Set(DEVICES.map(familyOf))).sort();
+  familySelect.innerHTML = '<option value="All">All families</option>' +
+    families.map(f=>`<option value="${f}">${f}</option>`).join('');
+  familySelect.value = families.includes(prevValue) ? prevValue : 'All';
+
+  renderBerOptions();
+}
+
+document.getElementById('familySelect').addEventListener('change', renderExportPreview);
+
+function renderBerOptions(){
+  const sel = document.getElementById('berSelect');
+  const set = new Map();
+  DEVICES.forEach(d=> d.rxThresholds.forEach(t=> set.set(t.description, true)));
+  sel.innerHTML = Array.from(set.keys()).map(desc=>`<option value="${desc}">${desc}</option>`).join('')
+    || '<option value="">No thresholds available</option>';
+}
+
+function selectedDevices(){
+  const fam = document.getElementById('familySelect').value;
+  return fam === 'All' ? DEVICES.slice() : DEVICES.filter(d=> familyOf(d) === fam);
+}
+
+// Canonical modulation progression (lowest to highest order), rather than
+// alphabetical, so tables read the way an RF engineer expects.
+const MOD_ORDER = ['BPSK','QPSK','8PSK','16QAM','32QAM','64QAM','128QAM','256QAM','512QAM','1KLQAM','1KHQAM','2KQAM','4KQAM'];
+
+function compareAxisValues(axis, a, b){
+  if(axis === 'mod'){
+    const ia = MOD_ORDER.indexOf(a), ib = MOD_ORDER.indexOf(b);
+    if(ia===-1 && ib===-1) return String(a).localeCompare(String(b));
+    if(ia===-1) return 1;
+    if(ib===-1) return -1;
+    return ia - ib;
+  }
+  return String(a).localeCompare(String(b), undefined, {numeric:true});
+}
+
+function axisValue(d, axis){
+  switch(axis){
+    case 'bw': return d.bwChannel!=null ? d.bwChannel+' MHz' : 'N/A';
+    case 'mod': return d.modulation || 'N/A';
+    case 'freq': return freqBand(d);
+    case 'model': return d.model;
+    case 'threshold': return d.thresholdType || 'Unspecified';
+    case 'standard': return d.standard || 'Unspecified';
+    case 'compression': return d.compression || 'Unspecified';
+    case 'ethernet': return d.ethernetLayer || 'Unspecified';
+    case 'none': return '';
+    default: return 'N/A';
+  }
+}
+
+function paramValue(d, param, berDesc){
+  switch(param){
+    case 'txMax': return fmt(d.txPowerMax);
+    case 'txMin': return fmt(d.txPowerMin);
+    case 'atpc': return fmt(d.atpcRange);
+    case 'capacity': return fmt(d.radioCapacity);
+    case 'bwChannel': return fmt(d.bwChannel);
+    case 'bw3dbTx': return fmt(d.bw3dbTx);
+    case 'bw3dbRx': return fmt(d.bw3dbRx);
+    case 'emission': return d.emissionDesignator || 'N/A';
+    case 'noiseFigure': return fmt(d.noiseFigure);
+    case 'dispersiveFM': {
+      const t = d.rxThresholds.find(t=>t.description===berDesc) || d.rxThresholds[0];
+      return t ? fmt(t.dispersiveFM) : 'N/A';
+    }
+    case 'rxThreshold': {
+      const t = d.rxThresholds.find(t=>t.description===berDesc) || d.rxThresholds[0];
+      return t ? fmt(t.dbm) : 'N/A';
+    }
+    case 'sysGain': {
+      const t = d.rxThresholds.find(t=>t.description===berDesc) || d.rxThresholds[0];
+      if(t && d.txPowerMax!=null && t.dbm!=null) return (d.txPowerMax - t.dbm).toFixed(1);
+      return 'N/A';
+    }
+    default: return 'N/A';
+  }
+}
+
+document.getElementById('paramSelect').addEventListener('change', ()=>{
+  const p = document.getElementById('paramSelect').value;
+  document.getElementById('berField').style.display = (p==='rxThreshold'||p==='sysGain'||p==='dispersiveFM') ? '' : 'none';
+  renderExportPreview();
+});
+['rowAxis1','rowAxis2','colAxis1','colAxis2','berSelect'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', renderExportPreview);
+});
+
+function rowL2Active(){ return document.getElementById('rowLayer2Field').style.display !== 'none'; }
+function colL2Active(){ return document.getElementById('colLayer2Field').style.display !== 'none'; }
+
+document.getElementById('addRowLayer').addEventListener('click', ()=>{
+  document.getElementById('rowLayer2Field').style.display = '';
+  document.getElementById('addRowLayer').style.display = 'none';
+  renderExportPreview();
+});
+document.getElementById('removeRowLayer').addEventListener('click', ()=>{
+  document.getElementById('rowLayer2Field').style.display = 'none';
+  document.getElementById('addRowLayer').style.display = '';
+  renderExportPreview();
+});
+document.getElementById('addColLayer').addEventListener('click', ()=>{
+  document.getElementById('colLayer2Field').style.display = '';
+  document.getElementById('addColLayer').style.display = 'none';
+  renderExportPreview();
+});
+document.getElementById('removeColLayer').addEventListener('click', ()=>{
+  document.getElementById('colLayer2Field').style.display = 'none';
+  document.getElementById('addColLayer').style.display = '';
+  renderExportPreview();
+});
+
+/* Threshold / Standard / Compression / Ethernet layer selectors — placeholder
+   for now. They're shown for context but intentionally do not filter the
+   export pool yet; wiring them up is a future step. */
+function applyGeneralFilters(devices){
+  return devices;
+}
+
+function axisTitle(axis){
+  return {
+    bw:'Channel Bandwidth', mod:'Modulation', freq:'Frequency (GHz band)', model:'Model',
+    threshold:'Threshold', standard:'Standard', compression:'Compression', ethernet:'Ethernet Layer',
+    none:'—'
+  }[axis];
+}
+function paramTitle(){
+  const sel = document.getElementById('paramSelect');
+  return sel.options[sel.selectedIndex].text;
+}
+
+// Groups a sorted list of {l1,l2} entries into consecutive l1-runs, for
+// building rowspan/colspan nested headers (2 layers, like the sketch).
+function groupByL1(entries){
+  const groups = [];
+  entries.forEach(e=>{
+    const last = groups[groups.length-1];
+    if(last && last.l1===e.l1) last.items.push(e);
+    else groups.push({l1:e.l1, items:[e]});
+  });
+  return groups;
+}
+
+function buildPivot(){
+  const allSelected = selectedDevices();
+  const devices = applyGeneralFilters(allSelected);
+  const rowAxis1 = document.getElementById('rowAxis1').value;
+  const rowAxis2 = document.getElementById('rowAxis2').value;
+  const colAxis1 = document.getElementById('colAxis1').value;
+  const colAxis2 = document.getElementById('colAxis2').value;
+  const param = document.getElementById('paramSelect').value;
+  const berDesc = document.getElementById('berSelect').value;
+
+  if(!devices.length) return null;
+
+  const rowL2On = rowL2Active();
+  const colL2On = colL2Active();
+
+  const rowKeySet = new Map();
+  const colKeySet = new Map();
+  devices.forEach(d=>{
+    const rl1 = axisValue(d,rowAxis1), rl2 = rowL2On ? axisValue(d,rowAxis2) : '';
+    const cl1 = axisValue(d,colAxis1), cl2 = colL2On ? axisValue(d,colAxis2) : '';
+    rowKeySet.set(rl1+'␟'+rl2, {l1:rl1, l2:rl2});
+    colKeySet.set(cl1+'␟'+cl2, {l1:cl1, l2:cl2});
+  });
+  const rowCmp = (a,b)=> {
+    const c1 = compareAxisValues(rowAxis1, a.l1, b.l1);
+    return c1 !== 0 ? c1 : compareAxisValues(rowAxis2, a.l2, b.l2);
+  };
+  const colCmp = (a,b)=> {
+    const c1 = compareAxisValues(colAxis1, a.l1, b.l1);
+    return c1 !== 0 ? c1 : compareAxisValues(colAxis2, a.l2, b.l2);
+  };
+  const rows = Array.from(rowKeySet.values()).sort(rowCmp);
+  const cols = Array.from(colKeySet.values()).sort(colCmp);
+
+  const cells = rows.map(r=> cols.map(c=>{
+    const match = devices.find(d=>
+      axisValue(d,rowAxis1)===r.l1 && (!rowL2On || axisValue(d,rowAxis2)===r.l2) &&
+      axisValue(d,colAxis1)===c.l1 && (!colL2On || axisValue(d,colAxis2)===c.l2)
+    );
+    return match ? paramValue(match, param, berDesc) : 'N/A';
+  }));
+
+  return {
+    rowAxis1, rowAxis2: rowL2On ? rowAxis2 : 'none',
+    colAxis1, colAxis2: colL2On ? colAxis2 : 'none',
+    rows, cols, cells,
+    rowGroups: groupByL1(rows),
+    colGroups: groupByL1(cols),
+    matchedCount: devices.length,
+    totalCount: allSelected.length
+  };
+}
+
+function renderExportPreview(){
+  const wrap = document.getElementById('preview');
+  const pivot = buildPivot();
+
+  if(!pivot){
+    wrap.innerHTML = '<div class="empty">No devices match — select a radio family with at least one device.</div>';
+    return;
+  }
+
+  const showRowL2 = pivot.rowAxis2 !== 'none';
+  const showColL2 = pivot.colAxis2 !== 'none';
+  const cornerCols = showRowL2 ? 2 : 1;
+
+  // Column header row 1 (Layer 1 groups, spanning their Layer 2 members)
+  let headRow1 = `<th class="rowhead" rowspan="${showColL2?2:1}" colspan="${cornerCols}">${axisTitle(pivot.rowAxis1)}${showRowL2 ? ' / ' + axisTitle(pivot.rowAxis2) : ''}</th>`;
+  pivot.colGroups.forEach(g=>{
+    headRow1 += `<th colspan="${g.items.length}">${g.l1}</th>`;
+  });
+  let headRow2 = '';
+  if(showColL2){
+    headRow2 = '<tr>' + pivot.cols.map(c=>`<th>${c.l2}</th>`).join('') + '</tr>';
+  }
+
+  // Body rows with rowspan grouping on Layer 1
+  let rowIndex = 0;
+  const bodyRows = pivot.rowGroups.map(g=>{
+    return g.items.map((r,gi)=>{
+      const rowCells = pivot.cells[rowIndex].map(v=>`<td class="${v==='N/A'?'na':''}">${v}</td>`).join('');
+      const tr = '<tr>' +
+        (gi===0 ? `<th class="rowhead" rowspan="${g.items.length}">${g.l1}</th>` : '') +
+        (showRowL2 ? `<th class="rowhead">${r.l2}</th>` : '') +
+        rowCells + '</tr>';
+      rowIndex++;
+      return tr;
+    }).join('');
+  }).join('');
+
+  wrap.innerHTML = `<div class="matrix-block">
+    <table class="matrix pivot">
+      <thead><tr>${headRow1}</tr>${headRow2}</thead>
+      <tbody>${bodyRows}</tbody>
+    </table>
+  </div>`;
+}
+
+// Lazily loads the SheetJS library (only needed at export time) so the app
+// stays fully usable offline until you actually click Export to Excel.
+let xlsxLoadPromise = null;
+function loadXLSX(){
+  if(window.XLSX) return Promise.resolve();
+  if(xlsxLoadPromise) return xlsxLoadPromise;
+  xlsxLoadPromise = new Promise((resolve, reject)=>{
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = ()=> resolve();
+    s.onerror = ()=> reject(new Error('Could not load the Excel export library — check your internet connection and try again.'));
+    document.head.appendChild(s);
+  });
+  return xlsxLoadPromise;
+}
+
+// Builds a worksheet grid (array-of-arrays) plus a merge map that mirrors the
+// on-screen pivot table exactly: Layer 1 row/column groups become real merged
+// cells instead of repeated text, same as the rowspan/colspan preview.
+function buildExportGrid(pivot, paramName){
+  const showRowL2 = pivot.rowAxis2 !== 'none';
+  const showColL2 = pivot.colAxis2 !== 'none';
+  const cornerCols = showRowL2 ? 2 : 1;
+
+  const aoa = [];
+  const merges = [];
+
+  aoa.push(['Radio Spec Console export — parameter: ' + paramName]);
+  aoa.push(['Generated ' + new Date().toLocaleString()]);
+  aoa.push([]);
+
+  const headerRow1Idx = aoa.length;
+  const hr1 = [];
+  hr1[0] = axisTitle(pivot.rowAxis1);
+  if(showRowL2) hr1[1] = axisTitle(pivot.rowAxis2);
+  let colPtr = cornerCols;
+  pivot.colGroups.forEach(g=>{
+    hr1[colPtr] = g.l1;
+    if(g.items.length > 1){
+      merges.push({s:{r:headerRow1Idx, c:colPtr}, e:{r:headerRow1Idx, c:colPtr+g.items.length-1}});
+    }
+    colPtr += g.items.length;
+  });
+  aoa.push(hr1);
+
+  if(showColL2){
+    const headerRow2Idx = aoa.length;
+    const hr2 = [];
+    pivot.cols.forEach((c,idx)=>{ hr2[cornerCols+idx] = c.l2; });
+    aoa.push(hr2);
+    // Corner cells (row axis titles) span both header rows vertically.
+    merges.push({s:{r:headerRow1Idx, c:0}, e:{r:headerRow2Idx, c:0}});
+    if(showRowL2) merges.push({s:{r:headerRow1Idx, c:1}, e:{r:headerRow2Idx, c:1}});
+  }
+
+  let rIdx = 0;
+  pivot.rowGroups.forEach(g=>{
+    const groupStartRow = aoa.length;
+    g.items.forEach(r=>{
+      const rowArr = [];
+      rowArr[0] = g.l1;
+      if(showRowL2) rowArr[1] = r.l2;
+      pivot.cells[rIdx].forEach((v,ci)=>{ rowArr[cornerCols+ci] = v; });
+      aoa.push(rowArr);
+      rIdx++;
+    });
+    if(g.items.length > 1){
+      merges.push({s:{r:groupStartRow, c:0}, e:{r:groupStartRow+g.items.length-1, c:0}});
+      for(let k=1; k<g.items.length; k++){ aoa[groupStartRow+k][0] = ''; }
+    }
+  });
+
+  return {aoa, merges};
+}
+
+/* ============================== EXPORT QUEUE / LAYOUT CANVAS ============================== */
+// Lets you build one table, stage it into the sheet, then reconfigure the
+// rows/columns/parameter and build another. Staged tables appear as
+// draggable cards on a canvas; how you arrange them there — stacked below,
+// or placed beside one another — is the literal instruction for how the
+// final .xlsx sheet is laid out.
+let exportQueue = [];      // [{id, aoa, merges, label}]
+let layoutRows = [];       // [[id, id], [id]] — rows stacked top-to-bottom, ids within a row left-to-right
+let tableCounter = 0;
+let dragSourceId = null;
+
+function describePivot(pivot, paramName){
+  const showRowL2 = pivot.rowAxis2 !== 'none';
+  const showColL2 = pivot.colAxis2 !== 'none';
+  const rowsLabel = axisTitle(pivot.rowAxis1) + (showRowL2 ? ' × ' + axisTitle(pivot.rowAxis2) : '');
+  const colsLabel = axisTitle(pivot.colAxis1) + (showColL2 ? ' × ' + axisTitle(pivot.colAxis2) : '');
+  return rowsLabel + ' by ' + colsLabel + ' — ' + paramName;
+}
+
+function combineGridsVertical(grids){
+  const aoa = [];
+  const merges = [];
+  grids.forEach((g, idx)=>{
+    const rowOffset = aoa.length;
+    g.aoa.forEach(row=> aoa.push(row.slice()));
+    g.merges.forEach(m=> merges.push({
+      s:{r:m.s.r+rowOffset, c:m.s.c},
+      e:{r:m.e.r+rowOffset, c:m.e.c}
+    }));
+    if(idx < grids.length-1){ aoa.push([]); aoa.push([]); }
+  });
+  return {aoa, merges};
+}
+
+function combineGridsHorizontal(grids){
+  const maxRows = Math.max(...grids.map(g=>g.aoa.length));
+  const aoa = [];
+  for(let r=0; r<maxRows; r++) aoa.push([]);
+  const merges = [];
+  let colOffset = 0;
+  grids.forEach((g, idx)=>{
+    g.aoa.forEach((row, rIdx)=>{
+      row.forEach((val, cIdx)=>{ aoa[rIdx][colOffset+cIdx] = val; });
+    });
+    g.merges.forEach(m=> merges.push({
+      s:{r:m.s.r, c:m.s.c+colOffset},
+      e:{r:m.e.r, c:m.e.c+colOffset}
+    }));
+    const gridWidth = g.aoa.reduce((max,row)=>Math.max(max,row.length), 0);
+    colOffset += gridWidth + (idx < grids.length-1 ? 2 : 0);
+  });
+  return {aoa, merges};
+}
+
+// Builds the final sheet directly from the canvas arrangement: each layout
+// row is combined horizontally (tables placed beside each other), then all
+// rows are stacked vertically (rows placed below each other).
+function buildLayoutGrid(){
+  const rowGrids = layoutRows
+    .map(row => row.map(id => exportQueue.find(q=>q.id===id)).filter(Boolean))
+    .filter(row => row.length)
+    .map(row => row.length > 1 ? combineGridsHorizontal(row) : row[0]);
+  return combineGridsVertical(rowGrids);
+}
+
+function removeIdFromLayout(id){
+  for(let i = layoutRows.length-1; i >= 0; i--){
+    const idx = layoutRows[i].indexOf(id);
+    if(idx !== -1){
+      layoutRows[i].splice(idx, 1);
+      if(layoutRows[i].length === 0) layoutRows.splice(i, 1);
+    }
+  }
+}
+
+function moveTable(sourceId, targetId, quadrant){
+  if(sourceId === targetId) return;
+  removeIdFromLayout(sourceId);
+  const targetRowIdx = layoutRows.findIndex(r => r.includes(targetId));
+  if(targetRowIdx === -1){ layoutRows.push([sourceId]); return; }
+  const targetRow = layoutRows[targetRowIdx];
+  const targetPos = targetRow.indexOf(targetId);
+  if(quadrant === 'left'){ targetRow.splice(targetPos, 0, sourceId); }
+  else if(quadrant === 'right'){ targetRow.splice(targetPos+1, 0, sourceId); }
+  else if(quadrant === 'top'){ layoutRows.splice(targetRowIdx, 0, [sourceId]); }
+  else { layoutRows.splice(targetRowIdx+1, 0, [sourceId]); }
+}
+
+function getQuadrant(clientX, clientY, rect){
+  const relX = (clientX - rect.left) / rect.width - 0.5;
+  const relY = (clientY - rect.top) / rect.height - 0.5;
+  if(Math.abs(relX) > Math.abs(relY)) return relX < 0 ? 'left' : 'right';
+  return relY < 0 ? 'top' : 'bottom';
+}
+
+function renderQueue(){
+  const canvas = document.getElementById('layoutCanvas');
+  const info = document.getElementById('queueInfo');
+  const exportBtn = document.getElementById('exportBtn');
+
+  if(!exportQueue.length){
+    canvas.innerHTML = '<div class="empty">Staged tables will appear here — drag them to arrange how the Excel sheet is built.</div>';
+    info.textContent = 'No tables staged yet — click "+ Add this table to sheet" to stage the table above.';
+    exportBtn.textContent = 'Export to Excel';
+    exportBtn.disabled = true;
+    return;
+  }
+
+  canvas.innerHTML = layoutRows.map(row => `
+    <div class="layout-row" data-row-ids="${row.join(',')}">
+      ${row.map(id=>{
+        const item = exportQueue.find(q=>q.id===id);
+        return `<div class="layout-card" draggable="true" data-id="${id}">
+          <span class="drag-handle">⠿</span>
+          <span class="layout-card-label">${item ? item.label : id}</span>
+          <button type="button" class="layout-card-remove" data-id="${id}" title="Remove">✕</button>
+        </div>`;
+      }).join('')}
+    </div>
+  `).join('');
+
+  info.textContent = exportQueue.length + (exportQueue.length===1 ? ' table' : ' tables') + ' staged — drag a card onto another to place it left, right, above, or below.';
+  exportBtn.textContent = 'Export to Excel (' + exportQueue.length + (exportQueue.length===1 ? ' table' : ' tables') + ')';
+  exportBtn.disabled = false;
+
+  wireCanvasDragHandlers();
+}
+
+function wireCanvasDragHandlers(){
+  const canvas = document.getElementById('layoutCanvas');
+
+  canvas.querySelectorAll('.layout-card-remove').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      exportQueue = exportQueue.filter(q=>q.id!==id);
+      removeIdFromLayout(id);
+      renderQueue();
+    });
+  });
+
+  const cards = canvas.querySelectorAll('.layout-card');
+  cards.forEach(card=>{
+    card.addEventListener('dragstart', (e)=>{
+      dragSourceId = card.dataset.id;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', card.dataset.id);
+    });
+    card.addEventListener('dragend', ()=>{
+      card.classList.remove('dragging');
+      cards.forEach(c=>c.classList.remove('drop-left','drop-right','drop-top','drop-bottom'));
+    });
+    card.addEventListener('dragover', (e)=>{
+      e.preventDefault();
+      if(!dragSourceId || dragSourceId === card.dataset.id) return;
+      const rect = card.getBoundingClientRect();
+      const quadrant = getQuadrant(e.clientX, e.clientY, rect);
+      card.classList.remove('drop-left','drop-right','drop-top','drop-bottom');
+      card.classList.add('drop-' + quadrant);
+    });
+    card.addEventListener('dragleave', ()=>{
+      card.classList.remove('drop-left','drop-right','drop-top','drop-bottom');
+    });
+    card.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      if(!dragSourceId || dragSourceId === card.dataset.id) return;
+      const rect = card.getBoundingClientRect();
+      const quadrant = getQuadrant(e.clientX, e.clientY, rect);
+      moveTable(dragSourceId, card.dataset.id, quadrant);
+      dragSourceId = null;
+      renderQueue();
+    });
+  });
+
+  // Dropping on empty canvas space (not on a specific card) appends a new
+  // row at the end — a simple way to place a table "after everything".
+  canvas.addEventListener('dragover', (e)=>{
+    e.preventDefault();
+    canvas.classList.add('canvas-drag-over');
+  });
+  canvas.addEventListener('dragleave', (e)=>{
+    if(e.target === canvas) canvas.classList.remove('canvas-drag-over');
+  });
+  canvas.addEventListener('drop', (e)=>{
+    canvas.classList.remove('canvas-drag-over');
+    if(e.target !== canvas || !dragSourceId) return;
+    removeIdFromLayout(dragSourceId);
+    layoutRows.push([dragSourceId]);
+    dragSourceId = null;
+    renderQueue();
+  });
+}
+
+document.getElementById('addTableBtn').addEventListener('click', ()=>{
+  const pivot = buildPivot();
+  if(!pivot){
+    alert('No table to add — pick a radio family with at least one matching device first.');
+    return;
+  }
+  const paramName = paramTitle();
+  const id = 'tbl_' + (++tableCounter);
+  exportQueue.push({ id, ...buildExportGrid(pivot, paramName), label: describePivot(pivot, paramName) });
+  layoutRows.push([id]);
+  renderQueue();
+});
+
+document.getElementById('exportBtn').addEventListener('click', async ()=>{
+  if(!exportQueue.length) return;
+
+  const btn = document.getElementById('exportBtn');
+  btn.disabled = true;
+  btn.textContent = 'Preparing…';
+
+  try{
+    await loadXLSX();
+    const {aoa, merges} = buildLayoutGrid();
+    const colCount = aoa.reduce((max,row)=>Math.max(max,row.length), 0);
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!merges'] = merges;
+    ws['!cols'] = new Array(colCount).fill({wch:18});
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Export');
+    XLSX.writeFile(wb, 'radio-spec-export-' + Date.now() + '.xlsx');
+
+    exportQueue = [];
+    layoutRows = [];
+  }catch(err){
+    alert(err.message || 'Export failed — please try again.');
+  }finally{
+    renderQueue();
+  }
+});
+
+/* ============================== THEME ============================== */
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  try{ localStorage.setItem('rafTheme', theme); }catch(e){}
+}
+let savedTheme = 'dark';
+try{ savedTheme = localStorage.getItem('rafTheme') || 'dark'; }catch(e){}
+applyTheme(savedTheme);
+document.getElementById('themeToggle').addEventListener('click', ()=>{
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+});
+
+/* ============================== INIT ============================== */
+renderLibrary();
+renderDevSelectors();
+renderQueue();
+</script>
+</body>
+</html>
