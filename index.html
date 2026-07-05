@@ -447,11 +447,6 @@
             <option value="bw" selected>Channel Bandwidth</option>
             <option value="mod">Modulation</option>
             <option value="freq">Frequency (GHz band)</option>
-            <option value="model">Model</option>
-            <option value="threshold">Threshold</option>
-            <option value="standard">Standard</option>
-            <option value="compression">Compression</option>
-            <option value="ethernet">Ethernet Layer</option>
           </select>
           <button type="button" class="link-btn" id="addRowLayer">+ Add row layer</button>
         </div>
@@ -461,11 +456,6 @@
             <option value="bw">Channel Bandwidth</option>
             <option value="mod" selected>Modulation</option>
             <option value="freq">Frequency (GHz band)</option>
-            <option value="model">Model</option>
-            <option value="threshold">Threshold</option>
-            <option value="standard">Standard</option>
-            <option value="compression">Compression</option>
-            <option value="ethernet">Ethernet Layer</option>
           </select>
         </div>
         <div class="field">
@@ -474,25 +464,15 @@
             <option value="bw">Channel Bandwidth</option>
             <option value="mod">Modulation</option>
             <option value="freq" selected>Frequency (GHz band)</option>
-            <option value="model">Model</option>
-            <option value="threshold">Threshold</option>
-            <option value="standard">Standard</option>
-            <option value="compression">Compression</option>
-            <option value="ethernet">Ethernet Layer</option>
           </select>
           <button type="button" class="link-btn" id="addColLayer">+ Add column layer</button>
         </div>
         <div class="field" id="colLayer2Field" style="display:none;">
           <label>Columns — additional layer <button type="button" class="link-btn remove" id="removeColLayer">remove</button></label>
           <select id="colAxis2">
-            <option value="bw">Channel Bandwidth</option>
+            <option value="bw" selected>Channel Bandwidth</option>
             <option value="mod">Modulation</option>
             <option value="freq">Frequency (GHz band)</option>
-            <option value="model" selected>Model</option>
-            <option value="threshold">Threshold</option>
-            <option value="standard">Standard</option>
-            <option value="compression">Compression</option>
-            <option value="ethernet">Ethernet Layer</option>
           </select>
         </div>
       </div>
@@ -1236,11 +1216,6 @@ function axisValue(d, axis){
     case 'bw': return d.bwChannel!=null ? d.bwChannel+' MHz' : 'N/A';
     case 'mod': return d.modulation || 'N/A';
     case 'freq': return freqBand(d);
-    case 'model': return d.model;
-    case 'threshold': return d.thresholdType || 'Unspecified';
-    case 'standard': return d.standard || 'Unspecified';
-    case 'compression': return d.compression || 'Unspecified';
-    case 'ethernet': return d.ethernetLayer || 'Unspecified';
     case 'none': return '';
     default: return 'N/A';
   }
@@ -1316,8 +1291,7 @@ function applyGeneralFilters(devices){
 
 function axisTitle(axis){
   return {
-    bw:'Channel Bandwidth', mod:'Modulation', freq:'Frequency (GHz band)', model:'Model',
-    threshold:'Threshold', standard:'Standard', compression:'Compression', ethernet:'Ethernet Layer',
+    bw:'Channel Bandwidth', mod:'Modulation', freq:'Frequency (GHz band)',
     none:'—'
   }[axis];
 }
@@ -1753,11 +1727,11 @@ function applyTheme(theme){
   document.documentElement.setAttribute('data-theme', theme);
   try{ localStorage.setItem('rafTheme', theme); }catch(e){}
 }
-let savedTheme = 'dark';
-try{ savedTheme = localStorage.getItem('rafTheme') || 'dark'; }catch(e){}
+let savedTheme = 'light';
+try{ savedTheme = localStorage.getItem('rafTheme') || 'light'; }catch(e){}
 applyTheme(savedTheme);
 document.getElementById('themeToggle').addEventListener('click', ()=>{
-  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
   applyTheme(current === 'dark' ? 'light' : 'dark');
 });
 
