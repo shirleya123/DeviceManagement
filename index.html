@@ -390,7 +390,7 @@
             <button type="button" id="ctxDelete">Delete</button>
           </div>
         </aside>
-        <div class="library-main">
+        <div class="library-main" id="libraryMain">
           <div class="library-main-head" id="libGridHead">
             <button type="button" class="btn ghost" id="addDeviceBtn">+ Add new device</button>
           </div>
@@ -513,7 +513,7 @@
 <script>
 /* ============================== VERSION ============================== */
 // Bump this with each meaningful update to the app.
-const APP_VERSION = '1.1';
+const APP_VERSION = '1.2';
 document.getElementById('versionBadge').textContent = 'v' + APP_VERSION;
 
 /* ============================== STATE ============================== */
@@ -540,6 +540,7 @@ function persistCollapsed(){
   try{ localStorage.setItem('rafCollapsedFolders', JSON.stringify(Array.from(collapsedFolders))); }catch(e){}
 }
 let dragDeviceId = null;
+let pendingUploadFolderId = null; // resolved target for the file currently being parsed
 
 function persist(){
   try{ localStorage.setItem('rafDevices', JSON.stringify(DEVICES)); }catch(e){}
@@ -687,10 +688,10 @@ function buildDevice(raw, formatVersion, fileName){
   device.compression = 'Unspecified';
   device.ethernetLayer = 'Unspecified';
 
-  // Directory placement: newly imported devices land in whichever directory
-  // is currently marked/open in the tree. If "Unspecified" is open (no real
-  // directory selected), they land there (folderId null) instead.
-  device.folderId = (typeof currentFolderId !== 'undefined' && currentFolderId) ? currentFolderId : null;
+  // Directory placement: set by whichever upload path is active (current
+  // directory, or the specific directory a file was dropped onto), already
+  // resolved against the containment rules — see resolveUploadFolderId().
+  device.folderId = (typeof pendingUploadFolderId !== 'undefined') ? pendingUploadFolderId : null;
 
   return device;
 }
@@ -840,8 +841,7 @@ function renderLibrary(){
     sel.addEventListener('change', ()=>{
       const dev = DEVICES.find(x=>x.id===sel.dataset.id);
       if(dev){
-        dev.folderId = sel.value === '' ? null : sel.value;
-        persist();
+        moveDeviceToFolder(dev, sel.value === '' ? null : sel.value);
         renderLibrary();
         renderFolderTree();
       }
@@ -879,6 +879,39 @@ function countRecursive(folderId){
     total += countRecursive(child.id);
   });
   return total;
+}
+
+/* ============================== CONTAINMENT RULES ==============================
+   A directory holds EITHER devices OR subdirectories, never both:
+   - A directory with subdirectories inside it can't take a device directly —
+     it gets redirected to Unspecified.
+   - A directory with devices inside it can't take a new subdirectory. */
+function folderHasDevices(folderId){
+  return !!folderId && countDirect(folderId) > 0;
+}
+function folderHasSubfolders(folderId){
+  return !!folderId && FOLDERS.some(f=>f.parentId===folderId);
+}
+
+// Resolves where a device should actually land, applying the containment
+// rule. Returns {folderId, redirected}.
+function resolveUploadFolderId(targetFolderId){
+  if(targetFolderId && folderHasSubfolders(targetFolderId)){
+    return { folderId: null, redirected: true };
+  }
+  return { folderId: targetFolderId || null, redirected: false };
+}
+
+// Moves an existing device to a directory, applying the same containment
+// rule. Returns true if the move landed where requested, false if redirected.
+function moveDeviceToFolder(device, targetFolderId){
+  const { folderId, redirected } = resolveUploadFolderId(targetFolderId);
+  device.folderId = folderId;
+  persist();
+  if(redirected){
+    alert('That directory contains subdirectories, so devices can\u2019t be placed directly inside it. Moved to Unspecified instead.');
+  }
+  return !redirected;
 }
 
 function renderFolderTree(){
@@ -936,11 +969,20 @@ function renderFolderTree(){
     el.addEventListener('drop', (e)=>{
       e.preventDefault();
       el.classList.remove('drag-over');
+      const targetFolderId = el.dataset.folder === '' ? null : el.dataset.folder;
+
+      // Native files dragged in from the OS -> import them straight into
+      // this directory (subject to the containment rule).
+      if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length){
+        handleFiles(e.dataTransfer.files, targetFolderId);
+        return;
+      }
+
+      // Otherwise this is one of our own device cards being moved.
       if(!dragDeviceId) return;
       const dev = DEVICES.find(x=>x.id===dragDeviceId);
       if(dev){
-        dev.folderId = el.dataset.folder === '' ? null : el.dataset.folder;
-        persist();
+        moveDeviceToFolder(dev, targetFolderId);
         renderLibrary();
       }
       dragDeviceId = null;
@@ -1031,6 +1073,10 @@ window.addEventListener('resize', closeFolderContextMenu);
 
 document.getElementById('newFolderBtn').addEventListener('click', ()=>{
   const parent = FOLDERS.find(f=>f.id===currentFolderId);
+  if(currentFolderId && folderHasDevices(currentFolderId)){
+    alert('"'+(parent?parent.name:'This directory')+'" already contains devices, so it can\u2019t also contain subdirectories. Move its devices out first, or create the new directory somewhere else.');
+    return;
+  }
   const name = prompt('New directory name' + (parent ? ' (inside "'+parent.name+'")' : '') + ':');
   if(!name || !name.trim()) return;
   const id = 'dir_' + (++folderCounter) + '_' + Date.now();
@@ -1151,6 +1197,27 @@ dropzone.addEventListener('drop', e=>{
 });
 fileInput.addEventListener('change', e=> handleFiles(e.target.files));
 
+// Dragging files from the desktop over the device panel switches the view
+// to the drop zone, and dropping anywhere in the panel uploads into
+// whichever directory is currently open.
+const libraryMain = document.getElementById('libraryMain');
+function isFileDrag(e){
+  return e.dataTransfer && Array.from(e.dataTransfer.types||[]).includes('Files');
+}
+libraryMain.addEventListener('dragover', e=>{
+  if(!isFileDrag(e)) return;
+  e.preventDefault();
+  if(document.getElementById('importSection').style.display === 'none'){
+    showImportView();
+  }
+});
+libraryMain.addEventListener('drop', e=>{
+  if(!isFileDrag(e)) return;
+  e.preventDefault();
+  dropzone.classList.remove('drag');
+  handleFiles(e.dataTransfer.files);
+});
+
 function showImportView(){
   document.getElementById('importSection').style.display = '';
   document.getElementById('libGridHead').style.display = 'none';
@@ -1166,10 +1233,26 @@ function showGridView(){
 document.getElementById('addDeviceBtn').addEventListener('click', showImportView);
 document.getElementById('cancelImportBtn').addEventListener('click', showGridView);
 
-function handleFiles(fileList){
+function handleFiles(fileList, targetFolderId){
   const files = Array.from(fileList);
   let pending = files.length;
   if(!pending) return;
+
+  const target = targetFolderId !== undefined ? targetFolderId : currentFolderId;
+  const resolved = resolveUploadFolderId(target);
+  pendingUploadFolderId = resolved.folderId;
+  let newlyAdded = 0;
+
+  const finish = ()=>{
+    persist();
+    renderDevSelectors();
+    renderExportPreview();
+    showGridView();
+    if(resolved.redirected && newlyAdded > 0){
+      alert('The directory you dropped into contains subdirectories, so device(s) can\u2019t be placed directly inside it. Added to Unspecified instead.');
+    }
+  };
+
   files.forEach(f=>{
     const reader = new FileReader();
     reader.onload = ()=>{
@@ -1179,12 +1262,7 @@ function handleFiles(fileList){
           const replace = confirm('"'+f.name+'" already exists in your library. Replace it?');
           if(!replace){
             pending--;
-            if(pending===0){
-              persist();
-              renderDevSelectors();
-              renderExportPreview();
-              showGridView();
-            }
+            if(pending===0) finish();
             return;
           }
         }
@@ -1202,17 +1280,13 @@ function handleFiles(fileList){
           DEVICES[existingIndex] = dev;
         } else {
           DEVICES.push(dev);
+          newlyAdded++;
         }
       }catch(err){
         console.error('Failed to parse', f.name, err);
       }
       pending--;
-      if(pending===0){
-        persist();
-        renderDevSelectors();
-        renderExportPreview();
-        showGridView();
-      }
+      if(pending===0) finish();
     };
     reader.readAsText(f);
   });
