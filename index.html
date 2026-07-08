@@ -173,6 +173,17 @@
   .folder-toggle:hover{opacity:1;background:rgba(0,0,0,0.06);}
   .folder-item.active .folder-toggle:hover{background:rgba(255,255,255,0.18);}
   .folder-toggle-spacer{display:inline-block;width:20px;flex-shrink:0;}
+  .context-menu{
+    position:fixed;z-index:60;min-width:140px;
+    background:var(--panel);border:1px solid var(--border);border-radius:8px;
+    box-shadow:var(--card-shadow-hover);padding:5px;display:flex;flex-direction:column;gap:2px;
+  }
+  .context-menu button{
+    background:none;border:none;text-align:left;padding:8px 10px;border-radius:5px;
+    font-family:var(--sans);font-size:13px;color:var(--text);cursor:pointer;
+  }
+  .context-menu button:hover{background:var(--panel-2);}
+  .context-menu button#ctxDelete:hover{background:rgba(161,42,56,0.1);color:var(--danger);}
   .folder-item .folder-count{font-size:11px;color:var(--text-faint);flex-shrink:0;}
   .folder-item .folder-del{
     background:none;border:none;color:inherit;opacity:0;cursor:pointer;
@@ -297,6 +308,10 @@
   table.matrix th{background:var(--panel-2);color:var(--text-dim);font-weight:500;}
   table.matrix th.rowhead{text-align:left;}
   table.matrix td.na{color:var(--text-faint);}
+  table.matrix .checkbox-cell{padding:6px;text-align:center;}
+  table.matrix .checkbox-cell input{cursor:pointer;accent-color:var(--accent);width:14px;height:14px;}
+  table.matrix tr.excluded{opacity:0.4;}
+  table.matrix td.excluded{opacity:0.4;}
   table.matrix.pivot{table-layout:auto;}
 
   /* ---------- modal ---------- */
@@ -370,6 +385,10 @@
             <button type="button" class="link-btn" id="newFolderBtn">+ New</button>
           </div>
           <div id="folderTree" class="folder-tree"></div>
+          <div id="folderContextMenu" class="context-menu" style="display:none;">
+            <button type="button" id="ctxRename">Rename</button>
+            <button type="button" id="ctxDelete">Delete</button>
+          </div>
         </aside>
         <div class="library-main">
           <div class="library-main-head" id="libGridHead">
@@ -397,83 +416,53 @@
   <section id="tab-export" style="display:none;">
     <div class="panel">
       <h2>Build export table</h2>
-      <p class="sub">Pick a radio family to filter the pool, define your row/column layer (Layer 1) and an optional differentiator (Layer 2), then pick the parameter to populate the cells — mirroring the layered table format from the RFP table generator spec.</p>
+      <p class="sub">Pick a directory to pull devices from, define your row/column layer (Layer 1) and an optional differentiator (Layer 2), then pick the parameter to populate the cells — mirroring the layered table format from the RFP table generator spec.</p>
 
       <div class="field-row">
         <div class="field">
-          <label>Threshold</label>
-          <select id="fThreshold">
-            <option value="Guarantee" selected>Guarantee</option>
-            <option value="Typical">Typical</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Standard</label>
-          <select id="fStandard">
-            <option value="ETSI" selected>ETSI</option>
-            <option value="FCC">FCC</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Compression</label>
-          <select id="fCompression">
-            <option value="No" selected>No</option>
-            <option value="HDD">HDD</option>
-            <option value="L2">L2</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Ethernet layer</label>
-          <select id="fEthernet">
-            <option value="L1" selected>L1</option>
-            <option value="L2">L2</option>
-          </select>
+          <label>Directory</label>
+          <select id="exportFolderSelect"></select>
         </div>
       </div>
 
-      <div class="field-row" style="margin-top:18px;">
-        <div class="field">
-          <label>Radio family</label>
-          <select id="familySelect">
-            <option value="All">All families</option>
-          </select>
+      <div class="field-row" style="margin-top:6px;align-items:flex-start;">
+        <div class="field-col">
+          <div class="field">
+            <label>Rows <span class="req">*</span></label>
+            <select id="rowAxis1">
+              <option value="bw" selected>Channel Bandwidth</option>
+              <option value="mod">Modulation</option>
+              <option value="freq">Frequency (GHz band)</option>
+            </select>
+            <button type="button" class="link-btn" id="addRowLayer">+ Add row layer</button>
+          </div>
+          <div class="field" id="rowLayer2Field" style="display:none;">
+            <label>Rows — additional layer <button type="button" class="link-btn remove" id="removeRowLayer">remove</button></label>
+            <select id="rowAxis2">
+              <option value="bw">Channel Bandwidth</option>
+              <option value="mod" selected>Modulation</option>
+              <option value="freq">Frequency (GHz band)</option>
+            </select>
+          </div>
         </div>
-      </div>
-
-      <div class="field-row" style="margin-top:6px;">
-        <div class="field">
-          <label>Rows <span class="req">*</span></label>
-          <select id="rowAxis1">
-            <option value="bw" selected>Channel Bandwidth</option>
-            <option value="mod">Modulation</option>
-            <option value="freq">Frequency (GHz band)</option>
-          </select>
-          <button type="button" class="link-btn" id="addRowLayer">+ Add row layer</button>
-        </div>
-        <div class="field" id="rowLayer2Field" style="display:none;">
-          <label>Rows — additional layer <button type="button" class="link-btn remove" id="removeRowLayer">remove</button></label>
-          <select id="rowAxis2">
-            <option value="bw">Channel Bandwidth</option>
-            <option value="mod" selected>Modulation</option>
-            <option value="freq">Frequency (GHz band)</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Columns <span class="req">*</span></label>
-          <select id="colAxis1">
-            <option value="bw">Channel Bandwidth</option>
-            <option value="mod">Modulation</option>
-            <option value="freq" selected>Frequency (GHz band)</option>
-          </select>
-          <button type="button" class="link-btn" id="addColLayer">+ Add column layer</button>
-        </div>
-        <div class="field" id="colLayer2Field" style="display:none;">
-          <label>Columns — additional layer <button type="button" class="link-btn remove" id="removeColLayer">remove</button></label>
-          <select id="colAxis2">
-            <option value="bw" selected>Channel Bandwidth</option>
-            <option value="mod">Modulation</option>
-            <option value="freq">Frequency (GHz band)</option>
-          </select>
+        <div class="field-col">
+          <div class="field">
+            <label>Columns <span class="req">*</span></label>
+            <select id="colAxis1">
+              <option value="bw">Channel Bandwidth</option>
+              <option value="mod">Modulation</option>
+              <option value="freq" selected>Frequency (GHz band)</option>
+            </select>
+            <button type="button" class="link-btn" id="addColLayer">+ Add column layer</button>
+          </div>
+          <div class="field" id="colLayer2Field" style="display:none;">
+            <label>Columns — additional layer <button type="button" class="link-btn remove" id="removeColLayer">remove</button></label>
+            <select id="colAxis2">
+              <option value="bw" selected>Channel Bandwidth</option>
+              <option value="mod">Modulation</option>
+              <option value="freq">Frequency (GHz band)</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -524,7 +513,7 @@
 <script>
 /* ============================== VERSION ============================== */
 // Bump this with each meaningful update to the app.
-const APP_VERSION = '1.0';
+const APP_VERSION = '1.1';
 document.getElementById('versionBadge').textContent = 'v' + APP_VERSION;
 
 /* ============================== STATE ============================== */
@@ -883,6 +872,15 @@ function countDirect(folderId){
   return DEVICES.filter(d=>d.folderId===folderId).length;
 }
 
+// Total devices in a directory including everything inside its subdirectories.
+function countRecursive(folderId){
+  let total = countDirect(folderId);
+  FOLDERS.filter(f=>f.parentId===folderId).forEach(child=>{
+    total += countRecursive(child.id);
+  });
+  return total;
+}
+
 function renderFolderTree(){
   const wrap = document.getElementById('folderTree');
   if(!wrap) return;
@@ -902,7 +900,7 @@ function renderFolderTree(){
       html += '<div class="folder-item'+(currentFolderId===f.id?' active':'')+'" data-folder="'+f.id+'" style="padding-left:'+(8+depth*16)+'px;">'+
         '<span class="folder-name">'+toggle+'<span class="folder-icon">\u{1F4C1}</span>'+escapeHtml(f.name)+'</span>'+
         '<span style="display:flex;align-items:center;gap:4px;">'+
-          '<span class="folder-count">'+countDirect(f.id)+'</span>'+
+          '<span class="folder-count">'+countRecursive(f.id)+'</span>'+
           '<button type="button" class="folder-del" data-folder-del="'+f.id+'" title="Delete directory">\u2715</button>'+
         '</span>'+
       '</div>';
@@ -947,6 +945,12 @@ function renderFolderTree(){
       }
       dragDeviceId = null;
     });
+    if(el.dataset.folder !== ''){
+      el.addEventListener('contextmenu', (e)=>{
+        e.preventDefault();
+        openFolderContextMenu(el.dataset.folder, e.clientX, e.clientY);
+      });
+    }
   });
 
   wrap.querySelectorAll('[data-folder-del]').forEach(btn=>{
@@ -983,6 +987,47 @@ function deleteFolder(folderId){
   persistFolders();
   renderLibrary();
 }
+
+function renameFolder(folderId){
+  const folder = FOLDERS.find(f=>f.id===folderId);
+  if(!folder) return;
+  const name = prompt('Rename directory:', folder.name);
+  if(!name || !name.trim() || name.trim() === folder.name) return;
+  folder.name = name.trim();
+  persistFolders();
+  renderLibrary();
+}
+
+/* Right-click context menu on directories — Rename and Delete only. */
+let contextMenuFolderId = null;
+function openFolderContextMenu(folderId, x, y){
+  contextMenuFolderId = folderId;
+  const menu = document.getElementById('folderContextMenu');
+  menu.style.display = 'flex';
+  const maxX = window.innerWidth - menu.offsetWidth - 8;
+  const maxY = window.innerHeight - menu.offsetHeight - 8;
+  menu.style.left = Math.min(x, maxX) + 'px';
+  menu.style.top = Math.min(y, maxY) + 'px';
+}
+function closeFolderContextMenu(){
+  contextMenuFolderId = null;
+  document.getElementById('folderContextMenu').style.display = 'none';
+}
+document.getElementById('ctxRename').addEventListener('click', ()=>{
+  const id = contextMenuFolderId;
+  closeFolderContextMenu();
+  if(id) renameFolder(id);
+});
+document.getElementById('ctxDelete').addEventListener('click', ()=>{
+  const id = contextMenuFolderId;
+  closeFolderContextMenu();
+  if(id) deleteFolder(id);
+});
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('#folderContextMenu')) closeFolderContextMenu();
+});
+document.addEventListener('scroll', closeFolderContextMenu, true);
+window.addEventListener('resize', closeFolderContextMenu);
 
 document.getElementById('newFolderBtn').addEventListener('click', ()=>{
   const parent = FOLDERS.find(f=>f.id===currentFolderId);
@@ -1129,8 +1174,35 @@ function handleFiles(fileList){
     const reader = new FileReader();
     reader.onload = ()=>{
       try{
+        const existingIndex = DEVICES.findIndex(d=>d.fileName === f.name);
+        if(existingIndex !== -1){
+          const replace = confirm('"'+f.name+'" already exists in your library. Replace it?');
+          if(!replace){
+            pending--;
+            if(pending===0){
+              persist();
+              renderDevSelectors();
+              renderExportPreview();
+              showGridView();
+            }
+            return;
+          }
+        }
+
         const dev = parseRAF(reader.result, f.name);
-        DEVICES.push(dev);
+        if(existingIndex !== -1){
+          // Keep the replaced device's identity, directory placement, and
+          // manual classification tags — only the parsed spec data changes.
+          const old = DEVICES[existingIndex];
+          dev.id = old.id;
+          dev.folderId = old.folderId;
+          dev.standard = old.standard;
+          dev.compression = old.compression;
+          dev.ethernetLayer = old.ethernetLayer;
+          DEVICES[existingIndex] = dev;
+        } else {
+          DEVICES.push(dev);
+        }
       }catch(err){
         console.error('Failed to parse', f.name, err);
       }
@@ -1160,28 +1232,46 @@ document.querySelectorAll('nav.tabs button').forEach(btn=>{
 });
 
 /* ============================== EXPORT BUILDER ============================== */
-/* Radio family = the script/radio ID up to (not including) the first dash,
-   e.g. "IP50C-6-56X-0" -> "IP50C". Falls back to model name if radioId is
-   unavailable. Used to filter the export pool to one exact family. */
-function familyOf(d){
-  const src = (d.radioId && d.radioId !== 'N/A') ? d.radioId : d.model;
-  if(!src) return 'Unknown';
-  const idx = src.indexOf('-');
-  return idx === -1 ? src : src.slice(0, idx);
+// Full path label for a directory, e.g. "Typical / IP50C". Root-level
+// folders just show their own name.
+function folderPathLabel(folderId){
+  const parts = [];
+  let f = FOLDERS.find(x=>x.id===folderId);
+  while(f){
+    parts.unshift(f.name);
+    f = FOLDERS.find(x=>x.id===f.parentId);
+  }
+  return parts.join(' / ');
+}
+
+// Only directories (including "Unspecified") that directly contain at least
+// one device are offered — empty ones simply aren't selectable.
+function exportableFolders(){
+  const options = FOLDERS
+    .filter(f => countDirect(f.id) > 0)
+    .map(f => ({ value: f.id, label: folderPathLabel(f.id), count: countDirect(f.id) }))
+    .sort((a,b)=> a.label.localeCompare(b.label));
+  if(countDirect(null) > 0){
+    options.unshift({ value: '', label: 'Unspecified', count: countDirect(null) });
+  }
+  return options;
 }
 
 function renderDevSelectors(){
-  const familySelect = document.getElementById('familySelect');
-  const prevValue = familySelect.value || 'All';
-  const families = Array.from(new Set(DEVICES.map(familyOf))).sort();
-  familySelect.innerHTML = '<option value="All">All families</option>' +
-    families.map(f=>`<option value="${f}">${f}</option>`).join('');
-  familySelect.value = families.includes(prevValue) ? prevValue : 'All';
+  const sel = document.getElementById('exportFolderSelect');
+  const prevValue = sel.value;
+  const options = exportableFolders();
+
+  sel.innerHTML = options.length
+    ? options.map(o=>`<option value="${o.value}">${escapeHtml(o.label)} (${o.count})</option>`).join('')
+    : '<option value="" disabled selected>No directories with devices yet</option>';
+
+  if(options.some(o=>o.value===prevValue)) sel.value = prevValue;
 
   renderBerOptions();
 }
 
-document.getElementById('familySelect').addEventListener('change', renderExportPreview);
+document.getElementById('exportFolderSelect').addEventListener('change', renderExportPreview);
 
 function renderBerOptions(){
   const sel = document.getElementById('berSelect');
@@ -1192,8 +1282,9 @@ function renderBerOptions(){
 }
 
 function selectedDevices(){
-  const fam = document.getElementById('familySelect').value;
-  return fam === 'All' ? DEVICES.slice() : DEVICES.filter(d=> familyOf(d) === fam);
+  const sel = document.getElementById('exportFolderSelect');
+  const target = sel.value === '' ? null : sel.value;
+  return DEVICES.filter(d => (d.folderId || null) === target);
 }
 
 // Canonical modulation progression (lowest to highest order), rather than
@@ -1282,12 +1373,13 @@ document.getElementById('removeColLayer').addEventListener('click', ()=>{
   renderExportPreview();
 });
 
-/* Threshold / Standard / Compression / Ethernet layer selectors — placeholder
-   for now. They're shown for context but intentionally do not filter the
-   export pool yet; wiring them up is a future step. */
-function applyGeneralFilters(devices){
-  return devices;
-}
+// Which rows/columns of the current pivot are excluded from export via the
+// checkboxes in the preview table. Keyed by "l1␟l2" so state naturally
+// carries over across re-renders of the same axis configuration.
+let excludedRowKeys = new Set();
+let excludedColKeys = new Set();
+function rowKey(r){ return r.l1 + '\u241F' + r.l2; }
+function colKey(c){ return c.l1 + '\u241F' + c.l2; }
 
 function axisTitle(axis){
   return {
@@ -1312,9 +1404,29 @@ function groupByL1(entries){
   return groups;
 }
 
+// Drops any row/column the user unchecked in the preview before the pivot
+// is staged for export — the live preview still shows everything (dimmed),
+// but only checked rows/columns make it into the Excel sheet.
+function filterPivotForExport(pivot){
+  const keepRowIdx = [];
+  pivot.rows.forEach((r,i)=>{ if(!excludedRowKeys.has(rowKey(r))) keepRowIdx.push(i); });
+  const keepColIdx = [];
+  pivot.cols.forEach((c,i)=>{ if(!excludedColKeys.has(colKey(c))) keepColIdx.push(i); });
+
+  const rows = keepRowIdx.map(i=>pivot.rows[i]);
+  const cols = keepColIdx.map(i=>pivot.cols[i]);
+  const cells = keepRowIdx.map(ri => keepColIdx.map(ci => pivot.cells[ri][ci]));
+
+  return {
+    ...pivot,
+    rows, cols, cells,
+    rowGroups: groupByL1(rows),
+    colGroups: groupByL1(cols)
+  };
+}
+
 function buildPivot(){
-  const allSelected = selectedDevices();
-  const devices = applyGeneralFilters(allSelected);
+  const devices = selectedDevices();
   const rowAxis1 = document.getElementById('rowAxis1').value;
   const rowAxis2 = document.getElementById('rowAxis2').value;
   const colAxis1 = document.getElementById('colAxis1').value;
@@ -1327,41 +1439,50 @@ function buildPivot(){
   const rowL2On = rowL2Active();
   const colL2On = colL2Active();
 
+  // The additional layer (if turned on) is the OUTER grouping — it gets the
+  // rowspan/colspan and sits to the left / on top — with the primary layer
+  // nested inside it. With no additional layer, the primary axis is used
+  // on its own.
+  const rowOuterAxis = rowL2On ? rowAxis2 : rowAxis1;
+  const rowInnerAxis = rowAxis1;
+  const colOuterAxis = colL2On ? colAxis2 : colAxis1;
+  const colInnerAxis = colAxis1;
+
   const rowKeySet = new Map();
   const colKeySet = new Map();
   devices.forEach(d=>{
-    const rl1 = axisValue(d,rowAxis1), rl2 = rowL2On ? axisValue(d,rowAxis2) : '';
-    const cl1 = axisValue(d,colAxis1), cl2 = colL2On ? axisValue(d,colAxis2) : '';
+    const rl1 = axisValue(d,rowOuterAxis), rl2 = rowL2On ? axisValue(d,rowInnerAxis) : '';
+    const cl1 = axisValue(d,colOuterAxis), cl2 = colL2On ? axisValue(d,colInnerAxis) : '';
     rowKeySet.set(rl1+'␟'+rl2, {l1:rl1, l2:rl2});
     colKeySet.set(cl1+'␟'+cl2, {l1:cl1, l2:cl2});
   });
   const rowCmp = (a,b)=> {
-    const c1 = compareAxisValues(rowAxis1, a.l1, b.l1);
-    return c1 !== 0 ? c1 : compareAxisValues(rowAxis2, a.l2, b.l2);
+    const c1 = compareAxisValues(rowOuterAxis, a.l1, b.l1);
+    return c1 !== 0 ? c1 : compareAxisValues(rowInnerAxis, a.l2, b.l2);
   };
   const colCmp = (a,b)=> {
-    const c1 = compareAxisValues(colAxis1, a.l1, b.l1);
-    return c1 !== 0 ? c1 : compareAxisValues(colAxis2, a.l2, b.l2);
+    const c1 = compareAxisValues(colOuterAxis, a.l1, b.l1);
+    return c1 !== 0 ? c1 : compareAxisValues(colInnerAxis, a.l2, b.l2);
   };
   const rows = Array.from(rowKeySet.values()).sort(rowCmp);
   const cols = Array.from(colKeySet.values()).sort(colCmp);
 
   const cells = rows.map(r=> cols.map(c=>{
     const match = devices.find(d=>
-      axisValue(d,rowAxis1)===r.l1 && (!rowL2On || axisValue(d,rowAxis2)===r.l2) &&
-      axisValue(d,colAxis1)===c.l1 && (!colL2On || axisValue(d,colAxis2)===c.l2)
+      axisValue(d,rowOuterAxis)===r.l1 && (!rowL2On || axisValue(d,rowInnerAxis)===r.l2) &&
+      axisValue(d,colOuterAxis)===c.l1 && (!colL2On || axisValue(d,colInnerAxis)===c.l2)
     );
     return match ? paramValue(match, param, berDesc) : 'N/A';
   }));
 
   return {
-    rowAxis1, rowAxis2: rowL2On ? rowAxis2 : 'none',
-    colAxis1, colAxis2: colL2On ? colAxis2 : 'none',
+    rowAxis1: rowOuterAxis, rowAxis2: rowL2On ? rowInnerAxis : 'none',
+    colAxis1: colOuterAxis, colAxis2: colL2On ? colInnerAxis : 'none',
     rows, cols, cells,
     rowGroups: groupByL1(rows),
     colGroups: groupByL1(cols),
     matchedCount: devices.length,
-    totalCount: allSelected.length
+    totalCount: devices.length
   };
 }
 
@@ -1377,9 +1498,11 @@ function renderExportPreview(){
   const showRowL2 = pivot.rowAxis2 !== 'none';
   const showColL2 = pivot.colAxis2 !== 'none';
   const cornerCols = showRowL2 ? 2 : 1;
+  const newCornerCols = cornerCols + 1; // +1 for the row-checkbox column
+  const headerRowCount = showColL2 ? 3 : 2; // group row [+ leaf row] + checkbox row
 
   // Column header row 1 (Layer 1 groups, spanning their Layer 2 members)
-  let headRow1 = `<th class="rowhead" rowspan="${showColL2?2:1}" colspan="${cornerCols}">${axisTitle(pivot.rowAxis1)}${showRowL2 ? ' / ' + axisTitle(pivot.rowAxis2) : ''}</th>`;
+  let headRow1 = `<th class="rowhead" rowspan="${headerRowCount}" colspan="${newCornerCols}">${axisTitle(pivot.rowAxis1)}${showRowL2 ? ' / ' + axisTitle(pivot.rowAxis2) : ''}</th>`;
   pivot.colGroups.forEach(g=>{
     headRow1 += `<th colspan="${g.items.length}">${g.l1}</th>`;
   });
@@ -1388,14 +1511,28 @@ function renderExportPreview(){
     headRow2 = '<tr>' + pivot.cols.map(c=>`<th>${c.l2}</th>`).join('') + '</tr>';
   }
 
-  // Body rows with rowspan grouping on Layer 1
+  // Column checkbox row — one checkbox per leaf column, unchecked = excluded from export
+  const headRowCheck = '<tr>' + pivot.cols.map(c=>{
+    const key = colKey(c);
+    const checked = !excludedColKeys.has(key) ? 'checked' : '';
+    return `<th class="checkbox-cell"><input type="checkbox" class="col-check" data-colkey="${encodeURIComponent(key)}" ${checked}></th>`;
+  }).join('') + '</tr>';
+
+  // Body rows with rowspan grouping on Layer 1, plus a per-row checkbox
   let rowIndex = 0;
   const bodyRows = pivot.rowGroups.map(g=>{
     return g.items.map((r,gi)=>{
-      const rowCells = pivot.cells[rowIndex].map(v=>`<td class="${v==='N/A'?'na':''}">${v}</td>`).join('');
-      const tr = '<tr>' +
+      const key = rowKey(r);
+      const checked = !excludedRowKeys.has(key) ? 'checked' : '';
+      const excludedCls = excludedRowKeys.has(key) ? ' excluded' : '';
+      const rowCells = pivot.cells[rowIndex].map((v,ci)=>{
+        const colExcluded = excludedColKeys.has(colKey(pivot.cols[ci]));
+        return `<td class="${v==='N/A'?'na':''}${colExcluded?' excluded':''}">${v}</td>`;
+      }).join('');
+      const tr = `<tr class="${excludedCls.trim()}">` +
         (gi===0 ? `<th class="rowhead" rowspan="${g.items.length}">${g.l1}</th>` : '') +
         (showRowL2 ? `<th class="rowhead">${r.l2}</th>` : '') +
+        `<th class="checkbox-cell"><input type="checkbox" class="row-check" data-rowkey="${encodeURIComponent(key)}" ${checked}></th>` +
         rowCells + '</tr>';
       rowIndex++;
       return tr;
@@ -1403,11 +1540,27 @@ function renderExportPreview(){
   }).join('');
 
   wrap.innerHTML = `<div class="matrix-block">
+    <p class="sub" style="margin:0 0 8px;">Uncheck a row or column to leave it out of the Excel export.</p>
     <table class="matrix pivot">
-      <thead><tr>${headRow1}</tr>${headRow2}</thead>
+      <thead><tr>${headRow1}</tr>${headRow2}${headRowCheck}</thead>
       <tbody>${bodyRows}</tbody>
     </table>
   </div>`;
+
+  wrap.querySelectorAll('.row-check').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const key = decodeURIComponent(cb.dataset.rowkey);
+      if(cb.checked) excludedRowKeys.delete(key); else excludedRowKeys.add(key);
+      renderExportPreview();
+    });
+  });
+  wrap.querySelectorAll('.col-check').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const key = decodeURIComponent(cb.dataset.colkey);
+      if(cb.checked) excludedColKeys.delete(key); else excludedColKeys.add(key);
+      renderExportPreview();
+    });
+  });
 }
 
 // Lazily loads the SheetJS library (only needed at export time) so the app
@@ -1686,9 +1839,14 @@ document.getElementById('addTableBtn').addEventListener('click', ()=>{
     alert('No table to add — pick a radio family with at least one matching device first.');
     return;
   }
+  const filtered = filterPivotForExport(pivot);
+  if(!filtered.rows.length || !filtered.cols.length){
+    alert('All rows or all columns are unchecked — check at least one of each before adding this table.');
+    return;
+  }
   const paramName = paramTitle();
   const id = 'tbl_' + (++tableCounter);
-  exportQueue.push({ id, ...buildExportGrid(pivot, paramName), label: describePivot(pivot, paramName) });
+  exportQueue.push({ id, ...buildExportGrid(filtered, paramName), label: describePivot(filtered, paramName) });
   layoutRows.push([id]);
   renderQueue();
 });
