@@ -160,6 +160,7 @@
   .folder-item.active{background:var(--accent);color:var(--on-accent);}
   .folder-item.active .folder-count{color:var(--on-accent);opacity:0.85;}
   .folder-item.drag-over{outline-color:var(--accent);background:rgba(201,53,69,0.08);}
+  .folder-item.dragging{opacity:0.4;}
   .folder-item .folder-name{
     display:flex;align-items:center;gap:6px;overflow:hidden;
     text-overflow:ellipsis;white-space:nowrap;min-width:0;
@@ -229,9 +230,6 @@
     border-radius:20px;padding:2px 8px;
   }
   .pill-muted{background:var(--panel);color:var(--text-faint);border-color:var(--border);}
-  .tag-editor{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;}
-  .tag-editor .field label{font-size:10px;}
-  .tag-editor select{padding:7px 8px;font-size:12px;}
   .empty{
     text-align:center;padding:40px 20px;color:var(--text-faint);font-family:var(--sans);
     font-size:12.5px;
@@ -302,6 +300,13 @@
   .preview-wrap{margin-top:20px;}
   .matrix-block{margin-bottom:22px;}
   table.matrix{border-collapse:collapse;width:100%;font-family:var(--sans);font-size:12.5px;font-variant-numeric:tabular-nums;}
+  .acm-table th{text-align:center;}
+  .acm-table td{text-align:center;padding:7px 8px;}
+  .acm-table td:first-child{font-weight:600;}
+  .acm-table tbody tr{cursor:pointer;transition:background .1s ease;}
+  .acm-table tbody tr:hover{background:var(--panel-2);}
+  .acm-table tr.acm-row-active{background:rgba(201,53,69,0.09);}
+  .acm-table tr.acm-row-active td{color:var(--accent);font-weight:700;}
   table.matrix th, table.matrix td{
     border:1px solid var(--border);padding:8px 10px;text-align:center;
   }
@@ -309,6 +314,21 @@
   table.matrix th.rowhead{text-align:left;}
   table.matrix td.na{color:var(--text-faint);}
   table.matrix .checkbox-cell{padding:6px;text-align:center;}
+  .matrix-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;}
+  .smart-filter-btn{
+    display:flex;align-items:center;gap:6px;flex-shrink:0;
+    background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+    font-family:var(--sans);font-size:12.5px;font-weight:500;
+    padding:7px 12px;border-radius:20px;cursor:pointer;transition:border-color .12s ease;
+  }
+  .smart-filter-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .sf-value-list{display:flex;flex-direction:column;gap:2px;max-height:280px;overflow-y:auto;margin:10px 0;
+    border:1px solid var(--border);border-radius:8px;padding:6px;}
+  .sf-value-row{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:6px;font-size:13px;}
+  .sf-value-row:hover{background:var(--panel-2);}
+  .sf-value-row input{cursor:pointer;accent-color:var(--accent);width:15px;height:15px;flex-shrink:0;}
+  .sf-value-row label{flex:1;cursor:pointer;}
+  .sf-links{display:flex;gap:14px;margin:6px 0 14px;}
   table.matrix .checkbox-cell input{cursor:pointer;accent-color:var(--accent);width:14px;height:14px;}
   table.matrix tr.excluded{opacity:0.4;}
   table.matrix td.excluded{opacity:0.4;}
@@ -418,11 +438,15 @@
       <h2>Build export table</h2>
       <p class="sub">Pick a directory to pull devices from, define your row/column layer (Layer 1) and an optional differentiator (Layer 2), then pick the parameter to populate the cells — mirroring the layered table format from the RFP table generator spec.</p>
 
-      <div class="field-row">
+      <div class="field-row" style="align-items:flex-end;">
         <div class="field">
           <label>Directory</label>
           <select id="exportFolderSelect"></select>
         </div>
+        <button type="button" class="smart-filter-btn" id="dirSmartFilterBtn" title="Find platform by standard & threshold">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 4 21 4 14 13 14 20 10 22 10 13 3 4"/></svg>
+          Find platform
+        </button>
       </div>
 
       <div class="field-row" style="margin-top:6px;align-items:flex-start;">
@@ -513,7 +537,7 @@
 <script>
 /* ============================== VERSION ============================== */
 // Bump this with each meaningful update to the app.
-const APP_VERSION = '1.2';
+const APP_VERSION = '2.0';
 document.getElementById('versionBadge').textContent = 'v' + APP_VERSION;
 
 /* ============================== STATE ============================== */
@@ -540,6 +564,7 @@ function persistCollapsed(){
   try{ localStorage.setItem('rafCollapsedFolders', JSON.stringify(Array.from(collapsedFolders))); }catch(e){}
 }
 let dragDeviceId = null;
+let dragFolderId = null;
 let pendingUploadFolderId = null; // resolved target for the file currently being parsed
 
 function persist(){
@@ -640,6 +665,46 @@ function buildDevice(raw, formatVersion, fileName){
 
   const txRange = splitCompact(raw.TX_POWER_RANGE_DBM).map(num);
 
+  // ACM state table: ADMOD_A/B/C rows, one per modulation the radio can
+  // adapt to. A = mod/switching/capacity, B = fade margin & signature,
+  // C = tx power & ATPC for that state.
+  const admodStates = [];
+  for(let i=1; i<=32; i++){
+    const idx = i<10 ? '0'+i : ''+i;
+    const aKey = 'ADMOD_A'+idx;
+    if(!(aKey in raw)) break;
+    const a = splitPositional(raw[aKey]);
+    const b = splitPositional(raw['ADMOD_B'+idx] || '');
+    const c = splitPositional(raw['ADMOD_C'+idx] || '');
+    const capText = (a[6]||'').trim();
+    const capMatch = capText.match(/(-?\d+(?:\.\d+)?)\s*-\s*(-?\d+(?:\.\d+)?)/);
+    admodStates.push({
+      index: i,
+      modulation: (a[0]||'').trim() || null,
+      rsec: (a[1]||'').trim() || null,
+      rxThresholdBer6: num(a[2]),
+      switchUp: num(a[3]),
+      switchDown: num(a[4]),
+      minCI: num(a[5]),
+      capacityText: capText || null,
+      capacityMin: capMatch ? parseFloat(capMatch[1]) : null,
+      capacityMax: capMatch ? parseFloat(capMatch[2]) : null,
+      dfm: num(b[0]),
+      dfmStep: num(b[1]),
+      sigDelay: num(b[2]),
+      sigWidth: num(b[3]),
+      minPhase: num(b[4]),
+      nonMinPhase: num(b[5]),
+      minPhaseStep: num(b[6]),
+      nonMinPhaseStep: num(b[7]),
+      maxRxSignal: num(b[8]),
+      xpif: num(b[9]),
+      txPowerMax: num(c[0]),
+      txPowerMin: num(c[1]),
+      atpc: num(c[2])
+    });
+  }
+
   const device = {
     id: 'dev_' + Date.now() + '_' + Math.random().toString(36).slice(2,8),
     fileName: fileName,
@@ -675,18 +740,14 @@ function buildDevice(raw, formatVersion, fileName){
     cToIBer3: num(raw['CtoI_RATIO_BER10-3_3DB']),
     noiseFloor: num(raw.NOISE_FLOOR_KTBF_DBM),
     txEmission: raw.TX_EMISSION || [],
-    comments: [1,2,3,4,5,6].map(n=>raw['COMMENT_'+n]).filter(c=>c && c.trim()!=='')
+    comments: [1,2,3,4,5,6].map(n=>raw['COMMENT_'+n]).filter(c=>c && c.trim()!=''),
+    numAcmStates: num(raw.NUM_ACM_STATES),
+    txStabilityPercent: num(raw.TX_STABILITY_PERCENT),
+    cochannelOperation: raw.COCHANNEL_OPERATION || null,
+    spaceDivOperation: raw.SPACE_DIV_OPERATION || null,
+    gainWidthDepth: splitCompact(raw.GAIN_WIDTH_DEPTH).map(num),
+    admodStates: admodStates
   };
-
-  // Classification tags used by the export filter/pivot builder.
-  // The .raf format doesn't carry Standard/Compression/Ethernet-layer as
-  // structured fields, so those default to "Unspecified" and are editable
-  // per device from the detail view. Threshold basis is auto-detected from
-  // the file's COMMENT lines when possible (e.g. "Guarantee" / "Typical").
-  device.thresholdType = detectThresholdType(device.comments);
-  device.standard = 'Unspecified';
-  device.compression = 'Unspecified';
-  device.ethernetLayer = 'Unspecified';
 
   // Directory placement: set by whichever upload path is active (current
   // directory, or the specific directory a file was dropped onto), already
@@ -696,11 +757,10 @@ function buildDevice(raw, formatVersion, fileName){
   return device;
 }
 
-function detectThresholdType(comments){
-  const joined = (comments||[]).join(' ').toLowerCase();
-  if(/guarant/.test(joined)) return 'Guarantee';
-  if(/typical/.test(joined)) return 'Typical';
-  return 'Unspecified';
+// Only true ACM (adaptive modulation) files are accepted: APPLICATION_TYPE 2
+// per the PL50 spec, with at least one parsed ADMOD state.
+function isAcmDevice(d){
+  return d.applicationType === '2' && Array.isArray(d.admodStates) && d.admodStates.length > 0;
 }
 
 /* ============================== HELPERS ============================== */
@@ -762,6 +822,31 @@ function tagPill(v){
   return `<span class="pill${unset?' pill-muted':''}">${unset?'—':v}</span>`;
 }
 
+// Ordered list of directory names from the top-level ancestor down to (and
+// including) the given directory, e.g. ['FCC','Guarantee','IP50C'].
+function folderAncestorNames(folderId){
+  const names = [];
+  let f = FOLDERS.find(x=>x.id===folderId);
+  while(f){
+    names.unshift(f.name);
+    f = FOLDERS.find(x=>x.id===f.parentId);
+  }
+  return names;
+}
+
+// Classification tags are derived purely from where a device sits in the
+// directory tree — a valid path reads standard/threshold/platform/BW/freq,
+// so the first three directory levels double as these tags. Any level the
+// device isn't nested deep enough to have comes back as null (-> "Unspecified").
+function pathTagsForDevice(d){
+  const chain = folderAncestorNames(d.folderId);
+  return {
+    standard: chain[0] || null,
+    threshold: chain[1] || null,
+    platform: chain[2] || null
+  };
+}
+
 /* ============================== RENDER: LIBRARY ============================== */
 function renderLibrary(){
   document.getElementById('libCount').textContent = DEVICES.length;
@@ -787,6 +872,7 @@ function renderLibrary(){
     card.className = 'card';
     card.draggable = true;
     card.dataset.id = d.id;
+    const pt = pathTagsForDevice(d);
     card.innerHTML = `
       <div class="card-top">
         <div>
@@ -803,7 +889,7 @@ function renderLibrary(){
         <span class="stat-label">Tx Max</span><span class="stat-value">${fmt(d.txPowerMax,' dBm')}</span>
       </div>
       <div class="tag-row">
-        ${tagPill(d.thresholdType)}${tagPill(d.standard)}${tagPill(d.compression)}${tagPill(d.ethernetLayer)}
+        ${tagPill(pt.standard)}${tagPill(pt.threshold)}${tagPill(pt.platform)}
       </div>
       <select class="card-move" data-id="${d.id}" title="Move to directory">
         ${folderOptionsHtml(d.folderId)}
@@ -961,6 +1047,21 @@ function renderFolderTree(){
       if(typeof showGridView === 'function') showGridView();
       else renderLibrary();
     });
+    if(el.dataset.folder !== ''){
+      el.draggable = true;
+      el.addEventListener('dragstart', (e)=>{
+        e.stopPropagation();
+        dragFolderId = el.dataset.folder;
+        dragDeviceId = null;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', 'folder:' + el.dataset.folder);
+        el.classList.add('dragging');
+      });
+      el.addEventListener('dragend', ()=>{
+        dragFolderId = null;
+        el.classList.remove('dragging');
+      });
+    }
     el.addEventListener('dragover', (e)=>{
       e.preventDefault();
       el.classList.add('drag-over');
@@ -975,6 +1076,14 @@ function renderFolderTree(){
       // this directory (subject to the containment rule).
       if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length){
         handleFiles(e.dataTransfer.files, targetFolderId);
+        return;
+      }
+
+      // Dragging one directory onto another -> reparent it there.
+      if(dragFolderId){
+        const draggedId = dragFolderId;
+        dragFolderId = null;
+        moveFolderToParent(draggedId, targetFolderId);
         return;
       }
 
@@ -1009,6 +1118,30 @@ function collectDescendantIds(folderId){
     ids.push(...collectDescendantIds(child.id));
   });
   return ids;
+}
+
+// Reparents a directory via drag-and-drop, enforcing: no dropping onto
+// itself or its own descendants (would create a cycle), and no dropping
+// into a directory that already contains devices (containment rule).
+function moveFolderToParent(folderId, newParentId){
+  const folder = FOLDERS.find(f=>f.id===folderId);
+  if(!folder) return;
+  if(newParentId === folderId) return;
+
+  if(newParentId && collectDescendantIds(folderId).includes(newParentId)){
+    alert('Can\u2019t move a directory into one of its own subdirectories.');
+    return;
+  }
+  if(newParentId && folderHasDevices(newParentId)){
+    const target = FOLDERS.find(f=>f.id===newParentId);
+    alert('"'+(target?target.name:'That directory')+'" already contains devices, so it can\u2019t also contain subdirectories.');
+    return;
+  }
+  if(folder.parentId === newParentId) return;
+
+  folder.parentId = newParentId;
+  persistFolders();
+  renderLibrary();
 }
 
 function deleteFolder(folderId){
@@ -1085,6 +1218,210 @@ document.getElementById('newFolderBtn').addEventListener('click', ()=>{
   renderLibrary();
 });
 
+/* ============================== ACM (ADAPTIVE MODULATION) DETAIL ============================== */
+function modRank(name){
+  const i = MOD_ORDER.indexOf(name);
+  return i===-1 ? 999 : i;
+}
+function admodSorted(d){
+  return [...d.admodStates].sort((a,b)=> modRank(a.modulation) - modRank(b.modulation));
+}
+
+// Necessary-bandwidth code per ITU emission-designator convention: 3 sig
+// figs with the unit letter (M for MHz) placed at the decimal point.
+function bandwidthCode(mhz){
+  if(mhz==null) return null;
+  if(mhz >= 100) return Math.round(mhz) + 'M';
+  const rounded = Math.round(mhz*10)/10;
+  const intPart = Math.floor(rounded);
+  const dec = Math.round((rounded-intPart)*10);
+  return intPart + 'M' + dec;
+}
+
+// The fixed dB offset between the radio's published 1E-3 and 1E-6 RX
+// thresholds — used to estimate a per-state RSL @ BER 1E-3, since ADMOD_A
+// only carries BER 1E-6 per modulation state.
+function ber3MinusBer6Offset(d){
+  const t3 = d.rxThresholds.find(t => /1E-3\b/i.test(t.description||''));
+  const t6 = d.rxThresholds.find(t => /1E-6\b/i.test(t.description||''));
+  if(!t3 || !t6 || t3.dbm==null || t6.dbm==null) return null;
+  return t3.dbm - t6.dbm;
+}
+
+function round1(v){ return v==null ? null : Math.round(v*10)/10; }
+
+// Once-per-radio parameters (same regardless of which ACM state is picked).
+function acmRadioLevelRows(d){
+  const freqStabPpm = d.txStabilityPercent!=null ? d.txStabilityPercent*10000 : null;
+  const sdType = d.spaceDivOperation==='1' ? 'IFC' : (d.spaceDivOperation==='0' ? 'BBS' : null);
+  const isIfc = d.spaceDivOperation==='1';
+  const ifcGain = isIfc && d.gainWidthDepth && d.gainWidthDepth[0]!=null ? d.gainWidthDepth[0] : null;
+  return `
+    <div class="spec-row"><span>Lower Frequency</span><span>${fmt(d.freqLow,' MHz')}</span></div>
+    <div class="spec-row"><span>Upper Frequency</span><span>${fmt(d.freqHigh,' MHz')}</span></div>
+    <div class="spec-row"><span>Frequency Stability</span><span>${freqStabPpm!=null ? '±'+round1(freqStabPpm)+' PPM' : 'N/A'}</span></div>
+    <div class="spec-row"><span>N.F</span><span>${fmt(d.noiseFigure,' dB')}</span></div>
+    <div class="spec-row"><span>KTBF (BER 1E-6)</span><span>${fmt(d.noiseFloor,' dBm')}</span></div>
+    <div class="spec-row"><span>SD Type</span><span>${sdType || 'N/A'}</span></div>
+    <div class="spec-row"><span>IFC Gain</span><span>${isIfc ? fmt(ifcGain,' dB') : 'N/A (BBS)'}</span></div>
+    <div class="spec-row"><span>IFC Improvement Factor</span><span>N/A — not stored in file</span></div>
+  `;
+}
+
+// Per-ACM-state parameters, computed exactly per the calculation table.
+function acmStateDetailRows(d, state){
+  if(!state) return '<div class="spec-row"><span>No data</span><span>—</span></div>';
+
+  const nominalCap = (state.capacityMin!=null && state.capacityMax!=null)
+    ? (state.capacityMin+state.capacityMax)/2 : (state.capacityMax ?? state.capacityMin);
+  const specEff = (nominalCap!=null && d.bwChannel) ? nominalCap/d.bwChannel : null;
+
+  const thresholdSNR = (state.rxThresholdBer6!=null && d.noiseFloor!=null)
+    ? state.rxThresholdBer6 - d.noiseFloor : null;
+
+  const xpicValid = d.cochannelOperation === '1';
+
+  const offset = ber3MinusBer6Offset(d);
+  const rslBer3 = (offset!=null && state.rxThresholdBer6!=null) ? state.rxThresholdBer6 + offset : null;
+
+  const sysGain6 = (state.txPowerMax!=null && state.rxThresholdBer6!=null)
+    ? state.txPowerMax - state.rxThresholdBer6 : null;
+  const sysGain3 = (state.txPowerMax!=null && rslBer3!=null)
+    ? state.txPowerMax - rslBer3 : null;
+
+  const bwCode = bandwidthCode(d.bwChannel);
+  const emissionBonus = bwCode
+    ? bwCode + (['BPSK','4QAM'].includes(state.modulation) ? 'G' : 'D') + '7W'
+    : 'N/A';
+
+  return `
+    <div class="spec-row"><span>Spectral Efficiency</span><span>${specEff!=null ? round1(specEff)+' bps/Hz' : 'N/A'}</span></div>
+    <div class="spec-row"><span>XPIC Improvement Factor</span><span>${xpicValid ? fmt(state.xpif,' dB') : 'N/A (no cochannel)'}</span></div>
+    <div class="spec-row"><span>Max TX Power</span><span>${fmt(state.txPowerMax,' dBm')}</span></div>
+    <div class="spec-row"><span>Min TX Power</span><span>${fmt(state.txPowerMin,' dBm')}</span></div>
+    <div class="spec-row"><span>ATPC Range</span><span>${fmt(state.atpc,' dB')}</span></div>
+    <div class="spec-row"><span>Threshold SNR</span><span>${fmt(round1(thresholdSNR),' dB')}</span></div>
+    <div class="spec-row"><span>Co-Channel C/I (1E-6)</span><span>${fmt(state.minCI,' dB')}</span></div>
+    <div class="spec-row"><span>1st Adjacent C/I (1E-6)</span><span>${d.cToIBer6!=null ? fmt(d.cToIBer6,' dB') : 'N/A'}</span></div>
+    <div class="spec-row"><span>2nd Adjacent C/I (1E-6)</span><span>N/A — not in file</span></div>
+    <div class="spec-row"><span>RSL BER 1E-6</span><span>${fmt(state.rxThresholdBer6,' dBm')}</span></div>
+    <div class="spec-row"><span>RSL BER 1E-3</span><span>${rslBer3!=null ? fmt(round1(rslBer3),' dBm') : 'N/A'}</span></div>
+    <div class="spec-row"><span>Upgrade ACM @ RSL</span><span>${fmt(state.switchUp,' dBm')}</span></div>
+    <div class="spec-row"><span>Downgrade ACM @ RSL</span><span>${fmt(state.switchDown,' dBm')}</span></div>
+    <div class="spec-row"><span>MSE</span><span>N/A — not in file</span></div>
+    <div class="spec-row"><span>Upgrade ACM @ MSE</span><span>N/A — not in file</span></div>
+    <div class="spec-row"><span>Downgrade ACM @ MSE</span><span>N/A — not in file</span></div>
+    <div class="spec-row"><span>System Gain BER 1E-6</span><span>${sysGain6!=null ? fmt(round1(sysGain6),' dB') : 'N/A'}</span></div>
+    <div class="spec-row"><span>System Gain BER 1E-3</span><span>${sysGain3!=null ? fmt(round1(sysGain3),' dB') : 'N/A'}</span></div>
+    <div class="spec-row"><span>Max RX Signal (1E-6)</span><span>${fmt(state.maxRxSignal,' dBm')}</span></div>
+    <div class="spec-row"><span>DFM (1E-6)</span><span>${fmt(state.dfm,' dB')}</span></div>
+    <div class="spec-row"><span>Signature Delay</span><span>${fmt(state.sigDelay,' ns')}</span></div>
+    <div class="spec-row"><span>Signature Width</span><span>${fmt(state.sigWidth,' MHz')}</span></div>
+    <div class="spec-row"><span>Signature Min Phase</span><span>${fmt(state.minPhase,' dB')}</span></div>
+    <div class="spec-row"><span>Signature Non-Min Phase</span><span>${fmt(state.nonMinPhase,' dB')}</span></div>
+    <div class="spec-row"><span>Emission Designator</span><span>${emissionBonus}</span></div>
+  `;
+}
+
+function acmOverviewTable(d, selectedMod){
+  const states = admodSorted(d);
+  const rows = states.map(s=>{
+    const isSel = s.modulation === selectedMod;
+    return `<tr class="${isSel?'acm-row-active':''}" data-mod="${encodeURIComponent(s.modulation||'')}">
+      <td>${s.modulation || '—'}</td>
+      <td>${s.capacityText || '—'}</td>
+      <td>${fmt(s.rxThresholdBer6,' dBm')}</td>
+      <td>${fmt(s.minCI,' dB')}</td>
+      <td>${fmt(s.dfm,' dB')}</td>
+      <td>${fmt(s.txPowerMax,' dBm')}</td>
+    </tr>`;
+  }).join('');
+  return `<table class="matrix acm-table">
+    <thead><tr><th>Mod</th><th>Capacity</th><th>RX Thr (1E-6)</th><th>Min C/I</th><th>DFM</th><th>Tx Max</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+// Simple capacity-ladder bar chart across ACM states — the classic
+// "more capacity needs more signal" trade-off, at a glance.
+function acmCapacityChart(d, selectedMod){
+  const states = admodSorted(d);
+  const w = 660, h = 160, padL = 4, padR = 4, padT = 10, padB = 46;
+  const chartW = w - padL - padR, chartH = h - padT - padB;
+  const maxVal = Math.max(...states.map(s=> s.capacityMax ?? s.capacityMin ?? 0), 1);
+  const n = states.length || 1;
+  const gap = 4;
+  const barW = (chartW - gap*(n-1)) / n;
+
+  let bars = '', labels = '';
+  states.forEach((s,i)=>{
+    const val = s.capacityMax ?? s.capacityMin ?? 0;
+    const bh = maxVal>0 ? (val/maxVal)*chartH : 0;
+    const x = padL + i*(barW+gap);
+    const y = padT + (chartH - bh);
+    const isSel = s.modulation === selectedMod;
+    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(bh,1).toFixed(1)}" rx="2"
+      style="fill:${isSel?'var(--accent)':'var(--panel-2)'};stroke:${isSel?'var(--accent)':'var(--border)'};stroke-width:1;cursor:pointer;"
+      data-mod="${encodeURIComponent(s.modulation||'')}"/>`;
+    const cx = x + barW/2;
+    const ly = h - padB + 12;
+    labels += `<text x="${cx.toFixed(1)}" y="${ly.toFixed(1)}" font-size="9" text-anchor="end"
+      transform="rotate(-55 ${cx.toFixed(1)} ${ly.toFixed(1)})"
+      style="fill:${isSel?'var(--accent)':'var(--text-faint)'};font-family:var(--sans);${isSel?'font-weight:600;':''}">${s.modulation}</text>`;
+  });
+
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="150" style="overflow:visible;" class="acm-chart">${bars}${labels}</svg>`;
+}
+
+function renderAcmDynamic(d, modName){
+  const state = d.admodStates.find(s=>s.modulation===modName) || admodSorted(d)[0];
+  const selMod = state ? state.modulation : null;
+  return `
+    <div class="spec-grid" style="border-top:none;">
+      ${acmStateDetailRows(d, state)}
+    </div>
+    <div class="grp" style="padding-top:12px;">All ACM States <span style="color:var(--text-faint);text-transform:none;letter-spacing:0;">— click a row or bar to switch</span></div>
+    ${acmOverviewTable(d, selMod)}
+    <div style="margin-top:16px;">${acmCapacityChart(d, selMod)}</div>
+  `;
+}
+
+function wireAcmInteractions(d){
+  const sel = document.getElementById('acmModSelect');
+  const dyn = document.getElementById('acmDynamic');
+  const selectMod = (mod)=>{
+    sel.value = mod;
+    dyn.innerHTML = renderAcmDynamic(d, mod);
+    wireAcmInteractions(d);
+  };
+  dyn.querySelectorAll('.acm-table tbody tr').forEach(tr=>{
+    tr.addEventListener('click', ()=> selectMod(decodeURIComponent(tr.dataset.mod)));
+  });
+  dyn.querySelectorAll('.acm-chart rect').forEach(rect=>{
+    rect.addEventListener('click', ()=> selectMod(decodeURIComponent(rect.dataset.mod)));
+  });
+}
+
+function initAcmSection(d){
+  const sel = document.getElementById('acmModSelect');
+  const states = admodSorted(d);
+  sel.innerHTML = states.map(s=>
+    `<option value="${encodeURIComponent(s.modulation||'')}">${s.modulation}${s.capacityText?' — '+s.capacityText:''}</option>`
+  ).join('');
+  const defaultMod = states[0] ? states[0].modulation : null;
+  if(defaultMod) sel.value = encodeURIComponent(defaultMod);
+
+  const dyn = document.getElementById('acmDynamic');
+  dyn.innerHTML = renderAcmDynamic(d, defaultMod);
+  wireAcmInteractions(d);
+
+  sel.addEventListener('change', ()=>{
+    const mod = decodeURIComponent(sel.value);
+    dyn.innerHTML = renderAcmDynamic(d, mod);
+    wireAcmInteractions(d);
+  });
+}
+
 function openDetail(id){
   const d = DEVICES.find(x=>x.id===id);
   if(!d) return;
@@ -1096,6 +1433,7 @@ function openDetail(id){
     <div class="spec-row"><span>${o.name||'Power option'}</span><span>${fmt(o.dbm,' dBm')} / min ${fmt(o.minDbm,' dBm')}</span></div>
   `).join('');
   const commentRows = d.comments.map(c=>`<div class="spec-row"><span>Comment</span><span>${c}</span></div>`).join('');
+  const pt = pathTagsForDevice(d);
 
   body.innerHTML = `
     <div class="modal-head">
@@ -1107,32 +1445,11 @@ function openDetail(id){
     <div class="file-of">${d.fileName} · imported ${new Date(d.uploadedAt).toLocaleString()}</div>
     ${sparkSvg(d.txEmission, 'spark-lg', 700, 90)}
 
-    <div class="grp" style="padding-top:4px;">Classification tags <span style="color:var(--text-faint);text-transform:none;letter-spacing:0;">— for future use in the Excel export</span></div>
-    <div class="tag-editor">
-      <div class="field">
-        <label>Threshold</label>
-        <select data-tag="thresholdType">
-          ${['Unspecified','Guarantee','Typical'].map(o=>`<option value="${o}" ${d.thresholdType===o?'selected':''}>${o}</option>`).join('')}
-        </select>
-      </div>
-      <div class="field">
-        <label>Standard</label>
-        <select data-tag="standard">
-          ${['Unspecified','ETSI','FCC'].map(o=>`<option value="${o}" ${d.standard===o?'selected':''}>${o}</option>`).join('')}
-        </select>
-      </div>
-      <div class="field">
-        <label>Compression</label>
-        <select data-tag="compression">
-          ${['Unspecified','No','HDD','L2'].map(o=>`<option value="${o}" ${d.compression===o?'selected':''}>${o}</option>`).join('')}
-        </select>
-      </div>
-      <div class="field">
-        <label>Ethernet layer</label>
-        <select data-tag="ethernetLayer">
-          ${['Unspecified','L1','L2'].map(o=>`<option value="${o}" ${d.ethernetLayer===o?'selected':''}>${o}</option>`).join('')}
-        </select>
-      </div>
+    <div class="grp" style="padding-top:4px;">Classification tags <span style="color:var(--text-faint);text-transform:none;letter-spacing:0;">— derived from directory path (standard / threshold / platform / BW / freq)</span></div>
+    <div class="spec-grid" style="border-top:none;margin-bottom:4px;">
+      <div class="spec-row"><span>Standard</span><span>${pt.standard || 'Unspecified'}</span></div>
+      <div class="spec-row"><span>Threshold</span><span>${pt.threshold || 'Unspecified'}</span></div>
+      <div class="spec-row"><span>Platform</span><span>${pt.platform || 'Unspecified'}</span></div>
     </div>
 
     <div class="spec-grid">
@@ -1150,7 +1467,7 @@ function openDetail(id){
       <div class="spec-row"><span>Channel Bandwidth</span><span>${fmt(d.bwChannel,' MHz')}</span></div>
       <div class="spec-row"><span>99% Bandwidth</span><span>${fmt(d.bw99pc,' MHz')}</span></div>
       <div class="spec-row"><span>3dB BW (Tx / Rx)</span><span>${fmt(d.bw3dbTx)} / ${fmt(d.bw3dbRx)} MHz</span></div>
-      <div class="spec-row"><span>Modulation</span><span>${d.modulation}</span></div>
+      <div class="spec-row"><span>ACM States</span><span>${d.admodStates && d.admodStates.length ? d.admodStates.length : fmt(d.numAcmStates)}</span></div>
 
       <div class="grp">Capacity</div>
       <div class="spec-row"><span>Tx / Rx Data Rate</span><span>${d.txRateMbps} / ${d.rxRateMbps}</span></div>
@@ -1168,17 +1485,24 @@ function openDetail(id){
 
       ${commentRows ? '<div class="grp">Notes</div>' + commentRows : ''}
     </div>
+
+    ${d.admodStates && d.admodStates.length ? `
+    <div class="grp" style="padding-top:14px;">Adaptive Modulation (ACM) — Radio-Level Parameters</div>
+    <div class="spec-grid" style="border-top:none;">
+      ${acmRadioLevelRows(d)}
+    </div>
+
+    <div class="grp" style="padding-top:10px;">Selected ACM State</div>
+    <div class="field" style="max-width:320px;margin:6px 0 14px;">
+      <label>Modulation <span style="text-transform:none;letter-spacing:0;color:var(--text-faint);">(defaults to the lowest / most robust)</span></label>
+      <select id="acmModSelect"></select>
+    </div>
+    <div id="acmDynamic"></div>
+    ` : ''}
   `;
   document.getElementById('overlay').classList.add('show');
   document.getElementById('closeModal').addEventListener('click', closeModal);
-  body.querySelectorAll('[data-tag]').forEach(sel=>{
-    sel.addEventListener('change', ()=>{
-      d[sel.dataset.tag] = sel.value;
-      persist();
-      renderLibrary();
-      renderExportPreview();
-    });
-  });
+  if(d.admodStates && d.admodStates.length) initAcmSection(d);
 }
 function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
 document.getElementById('overlay').addEventListener('click', (e)=>{
@@ -1257,6 +1581,15 @@ function handleFiles(fileList, targetFolderId){
     const reader = new FileReader();
     reader.onload = ()=>{
       try{
+        const dev = parseRAF(reader.result, f.name);
+
+        if(!isAcmDevice(dev)){
+          alert('"'+f.name+'" isn\u2019t an ACM (adaptive modulation) file, so it wasn\u2019t added. This library only accepts .raf files with APPLICATION_TYPE 2 and an ADMOD state table.');
+          pending--;
+          if(pending===0) finish();
+          return;
+        }
+
         const existingIndex = DEVICES.findIndex(d=>d.fileName === f.name);
         if(existingIndex !== -1){
           const replace = confirm('"'+f.name+'" already exists in your library. Replace it?');
@@ -1267,16 +1600,13 @@ function handleFiles(fileList, targetFolderId){
           }
         }
 
-        const dev = parseRAF(reader.result, f.name);
         if(existingIndex !== -1){
-          // Keep the replaced device's identity, directory placement, and
-          // manual classification tags — only the parsed spec data changes.
+          // Keep the replaced device's identity and directory placement —
+          // classification tags follow the directory automatically, and
+          // only the parsed spec data actually changes.
           const old = DEVICES[existingIndex];
           dev.id = old.id;
           dev.folderId = old.folderId;
-          dev.standard = old.standard;
-          dev.compression = old.compression;
-          dev.ethernetLayer = old.ethernetLayer;
           DEVICES[existingIndex] = dev;
         } else {
           DEVICES.push(dev);
@@ -1309,13 +1639,7 @@ document.querySelectorAll('nav.tabs button').forEach(btn=>{
 // Full path label for a directory, e.g. "Typical / IP50C". Root-level
 // folders just show their own name.
 function folderPathLabel(folderId){
-  const parts = [];
-  let f = FOLDERS.find(x=>x.id===folderId);
-  while(f){
-    parts.unshift(f.name);
-    f = FOLDERS.find(x=>x.id===f.parentId);
-  }
-  return parts.join(' / ');
+  return folderAncestorNames(folderId).join(' / ');
 }
 
 // Only directories (including "Unspecified") that directly contain at least
@@ -1330,6 +1654,84 @@ function exportableFolders(){
   }
   return options;
 }
+
+/* ============================== DIRECTORY SMART FILTER ==============================
+   Narrow down to the right platform directory by picking Standard then
+   Threshold, instead of scanning the whole Directory dropdown by hand. */
+function exportableFoldersWithChain(){
+  return exportableFolders()
+    .filter(o => o.value !== '') // Unspecified has no standard/threshold/platform
+    .map(o => ({ ...o, chain: folderAncestorNames(o.value) }));
+}
+
+function openDirectorySmartFilter(){
+  const all = exportableFoldersWithChain();
+  const body = document.getElementById('modalBody');
+
+  function render(resetThreshold){
+    const standards = Array.from(new Set(all.map(o=>o.chain[0]).filter(Boolean))).sort();
+    const stdSelect = body.querySelector('#dsfStandard');
+    const selectedStd = stdSelect ? stdSelect.value : (standards[0] || '');
+
+    const withinStd = all.filter(o=>o.chain[0]===selectedStd);
+    const thresholds = Array.from(new Set(withinStd.map(o=>o.chain[1]).filter(Boolean))).sort();
+    const thrSelect = body.querySelector('#dsfThreshold');
+    const selectedThr = (resetThreshold || !thrSelect) ? (thresholds[0] || '') : thrSelect.value;
+
+    const matches = withinStd.filter(o => o.chain[1]===selectedThr);
+
+    body.innerHTML = `
+      <div class="modal-head">
+        <h3>Find platform</h3>
+        <button class="close" id="closeModal">×</button>
+      </div>
+      <p class="file-of" style="margin-bottom:14px;">Narrow down by standard and threshold to find the right platform directory.</p>
+      <div class="field-row">
+        <div class="field">
+          <label>Standard</label>
+          <select id="dsfStandard">
+            ${standards.length ? standards.map(s=>`<option value="${s}" ${s===selectedStd?'selected':''}>${s}</option>`).join('') : '<option value="">No tagged directories yet</option>'}
+          </select>
+        </div>
+        <div class="field">
+          <label>Threshold</label>
+          <select id="dsfThreshold">
+            ${thresholds.length ? thresholds.map(t=>`<option value="${t}" ${t===selectedThr?'selected':''}>${t}</option>`).join('') : '<option value="">No thresholds under this standard</option>'}
+          </select>
+        </div>
+      </div>
+      <div class="sf-value-list" id="dsfResults">
+        ${matches.length ? matches.map(m=>`
+          <div class="sf-value-row" data-folder="${m.value}" style="cursor:pointer;">
+            <label style="cursor:pointer;flex:1;">${escapeHtml(m.chain[2] || m.label)}</label>
+            <span class="folder-count">${m.count}</span>
+          </div>
+        `).join('') : '<div class="sf-value-row"><label style="color:var(--text-faint);">No matching platforms</label></div>'}
+      </div>
+      <button class="btn ghost" id="dsfCancel">Cancel</button>
+    `;
+
+    document.getElementById('closeModal').addEventListener('click', closeModal);
+    document.getElementById('dsfCancel').addEventListener('click', closeModal);
+    document.getElementById('dsfStandard').addEventListener('change', ()=>{
+      // Standard changed -> threshold choice no longer applies, reset to "any"
+      render(true);
+    });
+    document.getElementById('dsfThreshold').addEventListener('change', ()=>render(false));
+    body.querySelectorAll('#dsfResults [data-folder]').forEach(row=>{
+      row.addEventListener('click', ()=>{
+        const sel = document.getElementById('exportFolderSelect');
+        sel.value = row.dataset.folder;
+        sel.dispatchEvent(new Event('change'));
+        closeModal();
+      });
+    });
+  }
+
+  render();
+  document.getElementById('overlay').classList.add('show');
+}
+document.getElementById('dirSmartFilterBtn').addEventListener('click', openDirectorySmartFilter);
 
 function renderDevSelectors(){
   const sel = document.getElementById('exportFolderSelect');
@@ -1361,9 +1763,26 @@ function selectedDevices(){
   return DEVICES.filter(d => (d.folderId || null) === target);
 }
 
+// Every ACM file in the chosen directory contributes one row per modulation
+// state it supports — a directory with several .raf files (different
+// channel bandwidths) each listing ~13 ADMOD states expands into the full
+// bandwidth × modulation × frequency matrix for that platform.
+function selectedDeviceStates(){
+  const devices = selectedDevices();
+  const entries = [];
+  devices.forEach(d=>{
+    if(d.admodStates && d.admodStates.length){
+      d.admodStates.forEach(s=> entries.push({ device:d, state:s }));
+    } else {
+      entries.push({ device:d, state:null }); // legacy/non-ACM fallback
+    }
+  });
+  return entries;
+}
+
 // Canonical modulation progression (lowest to highest order), rather than
 // alphabetical, so tables read the way an RF engineer expects.
-const MOD_ORDER = ['BPSK','QPSK','8PSK','16QAM','32QAM','64QAM','128QAM','256QAM','512QAM','1KLQAM','1KHQAM','2KQAM','4KQAM'];
+const MOD_ORDER = ['BPSK','QPSK','4QAM','8PSK','8QAM','16QAM','32QAM','64QAM','128QAM','256QAM','512QAM','1KLQAM','1KHQAM','2KQAM','4KQAM'];
 
 function compareAxisValues(axis, a, b){
   if(axis === 'mod'){
@@ -1376,38 +1795,77 @@ function compareAxisValues(axis, a, b){
   return String(a).localeCompare(String(b), undefined, {numeric:true});
 }
 
-function axisValue(d, axis){
+function axisValue(entry, axis){
+  const d = entry.device, s = entry.state;
   switch(axis){
     case 'bw': return d.bwChannel!=null ? d.bwChannel+' MHz' : 'N/A';
-    case 'mod': return d.modulation || 'N/A';
+    case 'mod': return (s && s.modulation) || d.modulation || 'N/A';
     case 'freq': return freqBand(d);
     case 'none': return '';
     default: return 'N/A';
   }
 }
 
-function paramValue(d, param, berDesc){
+// RX threshold / dispersive FM / system gain all depend on which BER
+// reference is picked. ACM states only carry BER 1E-6 directly; BER 1E-3 is
+// estimated via the same fixed offset used in the device detail view. Any
+// other BER reference isn't broken out per modulation state in this format.
+function stateThresholdForBer(d, s, berDesc){
+  if(!s) return null;
+  const isBer3 = /1E-3/i.test(berDesc||'');
+  const isBer6 = /1E-6/i.test(berDesc||'') || !berDesc;
+  if(isBer6) return s.rxThresholdBer6;
+  if(isBer3){
+    const offset = ber3MinusBer6Offset(d);
+    return (offset!=null && s.rxThresholdBer6!=null) ? s.rxThresholdBer6 + offset : null;
+  }
+  return null; // 1E-13 / 2.3E-5 etc. — not available per ACM state
+}
+
+function paramValue(entry, param, berDesc){
+  const d = entry.device, s = entry.state;
   switch(param){
-    case 'txMax': return fmt(d.txPowerMax);
-    case 'txMin': return fmt(d.txPowerMin);
-    case 'atpc': return fmt(d.atpcRange);
-    case 'capacity': return fmt(d.radioCapacity);
+    case 'txMax': return fmt(s ? s.txPowerMax : d.txPowerMax);
+    case 'txMin': return fmt(s ? s.txPowerMin : d.txPowerMin);
+    case 'atpc': return fmt(s ? s.atpc : d.atpcRange);
+    case 'capacity': {
+      if(s && (s.capacityMin!=null || s.capacityMax!=null)){
+        return s.capacityText || fmt(s.capacityMax ?? s.capacityMin);
+      }
+      return fmt(d.radioCapacity);
+    }
     case 'bwChannel': return fmt(d.bwChannel);
     case 'bw3dbTx': return fmt(d.bw3dbTx);
     case 'bw3dbRx': return fmt(d.bw3dbRx);
-    case 'emission': return d.emissionDesignator || 'N/A';
+    case 'emission': {
+      if(s && s.modulation){
+        const bwCode = bandwidthCode(d.bwChannel);
+        return bwCode ? bwCode + (['BPSK','4QAM'].includes(s.modulation)?'G':'D') + '7W' : 'N/A';
+      }
+      return d.emissionDesignator || 'N/A';
+    }
     case 'noiseFigure': return fmt(d.noiseFigure);
     case 'dispersiveFM': {
+      if(s) return fmt(s.dfm);
       const t = d.rxThresholds.find(t=>t.description===berDesc) || d.rxThresholds[0];
       return t ? fmt(t.dispersiveFM) : 'N/A';
     }
     case 'rxThreshold': {
+      if(s){
+        const v = stateThresholdForBer(d, s, berDesc);
+        return v!=null ? fmt(round1(v)) : 'N/A';
+      }
       const t = d.rxThresholds.find(t=>t.description===berDesc) || d.rxThresholds[0];
       return t ? fmt(t.dbm) : 'N/A';
     }
     case 'sysGain': {
+      const txMax = s ? s.txPowerMax : d.txPowerMax;
+      if(s){
+        const v = stateThresholdForBer(d, s, berDesc);
+        return (v!=null && txMax!=null) ? fmt(round1(txMax - v)) : 'N/A';
+      }
       const t = d.rxThresholds.find(t=>t.description===berDesc) || d.rxThresholds[0];
-      if(t && d.txPowerMax!=null && t.dbm!=null) return (d.txPowerMax - t.dbm).toFixed(1);
+      if(t && txMax!=null && t.dbm!=null) return (txMax - t.dbm).toFixed(1);
       return 'N/A';
     }
     default: return 'N/A';
@@ -1500,7 +1958,7 @@ function filterPivotForExport(pivot){
 }
 
 function buildPivot(){
-  const devices = selectedDevices();
+  const devices = selectedDeviceStates();
   const rowAxis1 = document.getElementById('rowAxis1').value;
   const rowAxis2 = document.getElementById('rowAxis2').value;
   const colAxis1 = document.getElementById('colAxis1').value;
@@ -1614,12 +2072,20 @@ function renderExportPreview(){
   }).join('');
 
   wrap.innerHTML = `<div class="matrix-block">
-    <p class="sub" style="margin:0 0 8px;">Uncheck a row or column to leave it out of the Excel export.</p>
+    <div class="matrix-toolbar">
+      <p class="sub" style="margin:0;">Uncheck a row or column to leave it out of the Excel export.</p>
+      <button type="button" class="smart-filter-btn" id="smartFilterBtn" title="Smart filter">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 4 21 4 14 13 14 20 10 22 10 13 3 4"/></svg>
+        Smart filter
+      </button>
+    </div>
     <table class="matrix pivot">
       <thead><tr>${headRow1}</tr>${headRow2}${headRowCheck}</thead>
       <tbody>${bodyRows}</tbody>
     </table>
   </div>`;
+
+  document.getElementById('smartFilterBtn').addEventListener('click', ()=> openSmartFilter(pivot));
 
   wrap.querySelectorAll('.row-check').forEach(cb=>{
     cb.addEventListener('change', ()=>{
@@ -1635,6 +2101,109 @@ function renderExportPreview(){
       renderExportPreview();
     });
   });
+}
+
+/* ============================== SMART FILTER ==============================
+   Bulk hide/show every row or column matching one value of a chosen axis —
+   e.g. "hide every row where Frequency = 8 GHz" — instead of unchecking
+   each matching row one at a time. */
+function smartFilterAxisOptions(pivot){
+  const opts = [];
+  opts.push({ key:'rowOuter', label:'Rows: ' + axisTitle(pivot.rowAxis1) });
+  if(pivot.rowAxis2 !== 'none') opts.push({ key:'rowInner', label:'Rows: ' + axisTitle(pivot.rowAxis2) });
+  opts.push({ key:'colOuter', label:'Columns: ' + axisTitle(pivot.colAxis1) });
+  if(pivot.colAxis2 !== 'none') opts.push({ key:'colInner', label:'Columns: ' + axisTitle(pivot.colAxis2) });
+  return opts;
+}
+
+// For a given axis slot, returns the distinct values plus the matching
+// row/col entries and exclusion-set for each — everything applying the
+// filter needs.
+function smartFilterAxisData(pivot, slot){
+  const isRow = slot==='rowOuter' || slot==='rowInner';
+  const entries = isRow ? pivot.rows : pivot.cols;
+  const field = (slot==='rowOuter' || slot==='colOuter') ? 'l1' : 'l2';
+  const keyFn = isRow ? rowKey : colKey;
+  const excludedSet = isRow ? excludedRowKeys : excludedColKeys;
+
+  const values = Array.from(new Set(entries.map(e=>e[field])));
+  return values.map(v=>{
+    const matching = entries.filter(e=>e[field]===v);
+    const allShown = matching.length>0 && matching.every(e=>!excludedSet.has(keyFn(e)));
+    return { value:v, matching, allShown };
+  });
+}
+
+function openSmartFilter(pivot){
+  const axisOptions = smartFilterAxisOptions(pivot);
+  const body = document.getElementById('modalBody');
+
+  function renderValueList(slot){
+    const data = smartFilterAxisData(pivot, slot);
+    return data.map((d,i)=>`
+      <div class="sf-value-row">
+        <input type="checkbox" id="sfval-${i}" data-value="${encodeURIComponent(d.value)}" ${d.allShown?'checked':''}>
+        <label for="sfval-${i}">${d.value}</label>
+      </div>
+    `).join('');
+  }
+
+  function render(){
+    const slot = body.querySelector('#sfAxisSelect') ? body.querySelector('#sfAxisSelect').value : axisOptions[0].key;
+    body.innerHTML = `
+      <div class="modal-head">
+        <h3>Smart filter</h3>
+        <button class="close" id="closeModal">×</button>
+      </div>
+      <p class="file-of" style="margin-bottom:14px;">Uncheck a value to hide every row or column that matches it — leave it checked to keep it shown.</p>
+      <div class="field">
+        <label>Filter by</label>
+        <select id="sfAxisSelect">
+          ${axisOptions.map(o=>`<option value="${o.key}" ${o.key===slot?'selected':''}>${o.label}</option>`).join('')}
+        </select>
+      </div>
+      <div class="sf-value-list" id="sfValueList">${renderValueList(slot)}</div>
+      <div class="sf-links">
+        <button type="button" class="link-btn" id="sfHideAll">Hide all</button>
+        <button type="button" class="link-btn" id="sfShowAll">Show all</button>
+      </div>
+      <button class="btn" id="sfApply">Apply</button>
+      <button class="btn ghost" id="sfCancel" style="margin-left:8px;">Cancel</button>
+    `;
+
+    document.getElementById('closeModal').addEventListener('click', closeModal);
+    document.getElementById('sfCancel').addEventListener('click', closeModal);
+    document.getElementById('sfAxisSelect').addEventListener('change', render);
+    document.getElementById('sfHideAll').addEventListener('click', ()=>{
+      body.querySelectorAll('#sfValueList input').forEach(cb=> cb.checked = false);
+    });
+    document.getElementById('sfShowAll').addEventListener('click', ()=>{
+      body.querySelectorAll('#sfValueList input').forEach(cb=> cb.checked = true);
+    });
+    document.getElementById('sfApply').addEventListener('click', ()=>{
+      const currentSlot = document.getElementById('sfAxisSelect').value;
+      const data = smartFilterAxisData(pivot, currentSlot);
+      const isRow = currentSlot==='rowOuter' || currentSlot==='rowInner';
+      const keyFn = isRow ? rowKey : colKey;
+      const excludedSet = isRow ? excludedRowKeys : excludedColKeys;
+
+      body.querySelectorAll('#sfValueList input').forEach(cb=>{
+        const value = decodeURIComponent(cb.dataset.value);
+        const entry = data.find(d=>d.value===value);
+        if(!entry) return;
+        entry.matching.forEach(m=>{
+          const k = keyFn(m);
+          if(cb.checked) excludedSet.delete(k); else excludedSet.add(k);
+        });
+      });
+
+      closeModal();
+      renderExportPreview();
+    });
+  }
+
+  render();
+  document.getElementById('overlay').classList.add('show');
 }
 
 // Lazily loads the SheetJS library (only needed at export time) so the app
