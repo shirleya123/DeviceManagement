@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Radio Spec Console</title>
+<title>Products</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -99,22 +99,21 @@
   html[data-theme="light"] .theme-toggle .icon-sun{display:none;}
   html[data-theme="light"] .theme-toggle .icon-moon{display:block;}
 
-  nav.tabs{display:flex;gap:6px;margin-bottom:20px;}
-  nav.tabs button{
-    font-family:var(--sans);font-size:13.5px;font-weight:500;letter-spacing:0.1px;
-    background:transparent;border:1px solid var(--border);color:var(--text-dim);
-    padding:9px 16px;border-radius:var(--radius);cursor:pointer;
-    display:flex;align-items:center;gap:8px;transition:all .15s ease;
+  .back-to-library{
+    display:inline-flex;align-items:center;gap:6px;background:none;border:none;
+    color:var(--text-dim);font-family:var(--sans);font-size:13px;cursor:pointer;
+    padding:0 0 14px;
   }
-  nav.tabs button .count{
-    background:var(--panel-2);color:var(--text-faint);border-radius:10px;
-    padding:1px 7px;font-size:11px;
+  .back-to-library:hover{color:var(--accent);}
+
+  .dir-db-toggle{display:flex;gap:4px;margin:10px 0 12px;border:1px solid var(--border);border-radius:20px;padding:3px;background:var(--panel-2);}
+  .dir-db-btn{
+    flex:1;font-family:var(--sans);font-size:11.5px;font-weight:500;
+    background:transparent;border:none;color:var(--text-dim);padding:6px 8px;
+    border-radius:16px;cursor:pointer;transition:background .12s ease, color .12s ease;
   }
-  nav.tabs button.active{
-    color:var(--bg);background:var(--accent);border-color:var(--accent);font-weight:600;
-  }
-  nav.tabs button.active .count{background:rgba(15,20,23,0.25);color:var(--bg);}
-  nav.tabs button:not(.active):hover{border-color:var(--accent-dim);color:var(--text);}
+  .dir-db-btn.active{background:var(--accent);color:var(--on-accent);font-weight:600;}
+  .dir-db-btn:not(.active):hover{color:var(--text);}
 
   .panel{
     background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
@@ -165,7 +164,8 @@
     display:flex;align-items:center;gap:6px;overflow:hidden;
     text-overflow:ellipsis;white-space:nowrap;min-width:0;
   }
-  .folder-item .folder-icon{flex-shrink:0;opacity:0.8;}
+  .folder-item .folder-icon{flex-shrink:0;opacity:0.7;font-size:8px;color:var(--accent);}
+  .folder-item.active .folder-icon{color:var(--on-accent);opacity:0.9;}
   .folder-toggle{
     background:none;border:none;color:inherit;opacity:0.7;cursor:pointer;
     font-size:13px;flex-shrink:0;width:20px;height:20px;text-align:center;padding:0;line-height:1;
@@ -194,7 +194,7 @@
   .folder-item .folder-del:hover{opacity:1;color:var(--danger);}
   .folder-item.active .folder-del:hover{color:#fff;background:rgba(0,0,0,0.15);}
   .library-main{flex:1;min-width:0;}
-  .library-main-head{display:flex;justify-content:flex-end;margin-bottom:14px;}
+  .library-main-head{display:flex;justify-content:flex-end;gap:10px;margin-bottom:14px;}
   #importSection .dropzone{margin-bottom:10px;}
   .card-move{
     background:var(--panel);border:1px solid var(--border);color:var(--text-dim);
@@ -378,21 +378,16 @@
     <div class="brand">
       <div class="brand-mark">
         <span class="brand-dot"></span>
-        <h1>Radio Spec Console</h1>
+        <h1>Products</h1>
         <span class="version-badge" id="versionBadge"></span>
       </div>
-      <span class="tag">Import radio spec files, manage your library, and export tables</span>
+      <span class="tag">Import, export, and manage your products library</span>
     </div>
     <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle light and dark mode">
       <span class="icon-sun">☀</span>
       <span class="icon-moon">☾</span>
     </button>
   </header>
-
-  <nav class="tabs">
-    <button class="active" data-tab="library">Library <span class="count" id="libCount">0</span></button>
-    <button data-tab="export">Export</button>
-  </nav>
 
   <section id="tab-library">
     <div class="panel">
@@ -404,15 +399,21 @@
             <span>Directories</span>
             <button type="button" class="link-btn" id="newFolderBtn">+ New</button>
           </div>
+          <div class="dir-db-toggle">
+            <button type="button" class="dir-db-btn active" data-db="radio">📡 Radio</button>
+            <button type="button" class="dir-db-btn" data-db="antenna">📶 Antenna</button>
+          </div>
           <div id="folderTree" class="folder-tree"></div>
           <div id="folderContextMenu" class="context-menu" style="display:none;">
+            <button type="button" id="ctxAddSub">Add subfolder</button>
             <button type="button" id="ctxRename">Rename</button>
             <button type="button" id="ctxDelete">Delete</button>
           </div>
         </aside>
         <div class="library-main" id="libraryMain">
           <div class="library-main-head" id="libGridHead">
-            <button type="button" class="btn ghost" id="addDeviceBtn">+ Add new device</button>
+            <button type="button" class="btn ghost" id="goToExportBtn">Export ↗</button>
+            <button type="button" class="btn ghost" id="addDeviceBtn">+ Add new radio</button>
           </div>
 
           <div id="importSection" style="display:none;">
@@ -427,7 +428,7 @@
           </div>
 
           <div id="libGrid" class="lib-grid"></div>
-          <div id="libEmpty" class="empty">No devices yet — click "+ Add new device" to populate your library.</div>
+          <div id="libEmpty" class="empty">No radio yet — click "+ Add new radio" to populate your library.</div>
         </div>
       </div>
     </div>
@@ -435,18 +436,23 @@
 
   <section id="tab-export" style="display:none;">
     <div class="panel">
+      <button type="button" class="back-to-library" id="backToLibraryBtn">&larr; Back to device library</button>
       <h2>Build export table</h2>
-      <p class="sub">Pick a directory to pull devices from, define your row/column layer (Layer 1) and an optional differentiator (Layer 2), then pick the parameter to populate the cells — mirroring the layered table format from the RFP table generator spec.</p>
+      <p class="sub">Find a platform by standard and threshold, define your row/column layer (Layer 1) and an optional differentiator (Layer 2), then pick the parameter to populate the cells — mirroring the layered table format from the RFP table generator spec.</p>
 
-      <div class="field-row" style="align-items:flex-end;">
+      <div class="field-row">
         <div class="field">
-          <label>Directory</label>
-          <select id="exportFolderSelect"></select>
+          <label>Standard</label>
+          <select id="exportStandardSelect"></select>
         </div>
-        <button type="button" class="smart-filter-btn" id="dirSmartFilterBtn" title="Find platform by standard & threshold">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 4 21 4 14 13 14 20 10 22 10 13 3 4"/></svg>
-          Find platform
-        </button>
+        <div class="field">
+          <label>Threshold</label>
+          <select id="exportThresholdSelect"></select>
+        </div>
+        <div class="field">
+          <label>Platform</label>
+          <select id="exportPlatformSelect"></select>
+        </div>
       </div>
 
       <div class="field-row" style="margin-top:6px;align-items:flex-start;">
@@ -527,6 +533,50 @@
     </div>
   </section>
 
+  <section id="tab-antenna" style="display:none;">
+    <div class="panel">
+      <h2>Device library</h2>
+      <p class="sub">Organize devices into directories. Click a directory to see the devices inside it; click a device card for full spec detail.</p>
+      <div class="library-layout">
+        <aside class="folder-panel">
+          <div class="folder-panel-head">
+            <span>Directories</span>
+            <button type="button" class="link-btn" id="newAntennaFolderBtn">+ New</button>
+          </div>
+          <div class="dir-db-toggle">
+            <button type="button" class="dir-db-btn" data-db="radio">📡 Radio</button>
+            <button type="button" class="dir-db-btn active" data-db="antenna">📶 Antenna</button>
+          </div>
+          <div id="antennaFolderTree" class="folder-tree"></div>
+          <div id="antennaFolderContextMenu" class="context-menu" style="display:none;">
+            <button type="button" id="antCtxAddSub">Add subfolder</button>
+            <button type="button" id="antCtxRename">Rename</button>
+            <button type="button" id="antCtxDelete">Delete</button>
+          </div>
+        </aside>
+        <div class="library-main" id="antennaLibraryMain">
+          <div class="library-main-head" id="antGridHead">
+            <button type="button" class="btn ghost" id="addAntennaBtn">+ Add new antenna</button>
+          </div>
+
+          <div id="antImportSection" style="display:none;">
+            <p class="sub">Drop one or more <code>.adf</code> NSMA antenna pattern files, or click to browse. Each file becomes one antenna, filed into the directory you currently have open.</p>
+            <div class="dropzone" id="antDropzone">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+              <div class="dz-title">Drop .adf files here, or click to browse</div>
+              <div class="dz-sub">NSMA WG16.99.050 antenna pattern — multiple files supported</div>
+              <input type="file" id="antFileInput" accept=".adf,.ADF,.txt" multiple>
+            </div>
+            <button type="button" class="link-btn" id="antCancelImportBtn">&larr; Back to library</button>
+          </div>
+
+          <div id="antGrid" class="lib-grid"></div>
+          <div id="antEmpty" class="empty">No antennas yet — click "+ Add new antenna" to populate your library.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <footer class="foot">Runs entirely in your browser. Files are parsed locally and kept in this browser's storage — nothing is uploaded anywhere.</footer>
 </div>
 
@@ -537,7 +587,7 @@
 <script>
 /* ============================== VERSION ============================== */
 // Bump this with each meaningful update to the app.
-const APP_VERSION = '2.0';
+const APP_VERSION = '4.0';
 document.getElementById('versionBadge').textContent = 'v' + APP_VERSION;
 
 /* ============================== STATE ============================== */
@@ -849,7 +899,6 @@ function pathTagsForDevice(d){
 
 /* ============================== RENDER: LIBRARY ============================== */
 function renderLibrary(){
-  document.getElementById('libCount').textContent = DEVICES.length;
   const grid = document.getElementById('libGrid');
   const empty = document.getElementById('libEmpty');
   grid.innerHTML = '';
@@ -859,9 +908,9 @@ function renderLibrary(){
   if(visible.length===0){
     empty.style.display = 'block';
     empty.textContent = DEVICES.length===0
-      ? 'No devices yet — import a .raf file above to populate your library.'
+      ? 'No radio yet — click "+ Add new radio" to populate your library.'
       : (currentFolderId===null
-          ? 'No unspecified devices — everything has been filed into a directory.'
+          ? 'No unspecified radio — everything has been filed into a directory.'
           : 'No devices in this directory yet — drag a card here, or use its Move menu.');
   } else {
     empty.style.display = 'none';
@@ -1005,7 +1054,7 @@ function renderFolderTree(){
   if(!wrap) return;
 
   let html = '<div class="folder-item'+(currentFolderId===null?' active':'')+'" data-folder="" style="padding-left:8px;">'+
-    '<span class="folder-name"><span class="folder-toggle-spacer"></span><span class="folder-icon">\u{1F5C2}</span>Unspecified</span>'+
+    '<span class="folder-name"><span class="folder-toggle-spacer"></span><span class="folder-icon">\u25CF</span>Unspecified</span>'+
     '<span class="folder-count">'+countDirect(null)+'</span>'+
   '</div>';
 
@@ -1017,7 +1066,7 @@ function renderFolderTree(){
         ? '<button type="button" class="folder-toggle" data-toggle="'+f.id+'" title="'+(isCollapsed?'Expand':'Minimize')+'">'+(isCollapsed?'\u25B8':'\u25BE')+'</button>'
         : '<span class="folder-toggle-spacer"></span>';
       html += '<div class="folder-item'+(currentFolderId===f.id?' active':'')+'" data-folder="'+f.id+'" style="padding-left:'+(8+depth*16)+'px;">'+
-        '<span class="folder-name">'+toggle+'<span class="folder-icon">\u{1F4C1}</span>'+escapeHtml(f.name)+'</span>'+
+        '<span class="folder-name">'+toggle+'<span class="folder-icon">\u25CF</span>'+escapeHtml(f.name)+'</span>'+
         '<span style="display:flex;align-items:center;gap:4px;">'+
           '<span class="folder-count">'+countRecursive(f.id)+'</span>'+
           '<button type="button" class="folder-del" data-folder-del="'+f.id+'" title="Delete directory">\u2715</button>'+
@@ -1188,6 +1237,11 @@ function closeFolderContextMenu(){
   contextMenuFolderId = null;
   document.getElementById('folderContextMenu').style.display = 'none';
 }
+document.getElementById('ctxAddSub').addEventListener('click', ()=>{
+  const id = contextMenuFolderId;
+  closeFolderContextMenu();
+  if(id) createFolder(id);
+});
 document.getElementById('ctxRename').addEventListener('click', ()=>{
   const id = contextMenuFolderId;
   closeFolderContextMenu();
@@ -1204,19 +1258,24 @@ document.addEventListener('click', (e)=>{
 document.addEventListener('scroll', closeFolderContextMenu, true);
 window.addEventListener('resize', closeFolderContextMenu);
 
-document.getElementById('newFolderBtn').addEventListener('click', ()=>{
-  const parent = FOLDERS.find(f=>f.id===currentFolderId);
-  if(currentFolderId && folderHasDevices(currentFolderId)){
+// Creates a new directory under parentId (null = root), enforcing the
+// containment rule: can't add a subfolder to a folder that already has
+// devices in it.
+function createFolder(parentId){
+  const parent = FOLDERS.find(f=>f.id===parentId);
+  if(parentId && folderHasDevices(parentId)){
     alert('"'+(parent?parent.name:'This directory')+'" already contains devices, so it can\u2019t also contain subdirectories. Move its devices out first, or create the new directory somewhere else.');
     return;
   }
   const name = prompt('New directory name' + (parent ? ' (inside "'+parent.name+'")' : '') + ':');
   if(!name || !name.trim()) return;
   const id = 'dir_' + (++folderCounter) + '_' + Date.now();
-  FOLDERS.push({ id, name: name.trim(), parentId: currentFolderId });
+  FOLDERS.push({ id, name: name.trim(), parentId: parentId });
   persistFolders();
   renderLibrary();
-});
+}
+
+document.getElementById('newFolderBtn').addEventListener('click', ()=> createFolder(null));
 
 /* ============================== ACM (ADAPTIVE MODULATION) DETAIL ============================== */
 function modRank(name){
@@ -1623,16 +1682,17 @@ function handleFiles(fileList, targetFolderId){
   fileInput.value = '';
 }
 
-/* ============================== TABS ============================== */
-document.querySelectorAll('nav.tabs button').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    const tab = btn.dataset.tab;
-    document.getElementById('tab-library').style.display = tab==='library' ? '' : 'none';
-    document.getElementById('tab-export').style.display = tab==='export' ? '' : 'none';
-    if(tab==='export'){ renderDevSelectors(); renderExportPreview(); }
-  });
+/* ============================== LIBRARY <-> EXPORT NAVIGATION ============================== */
+document.getElementById('goToExportBtn').addEventListener('click', ()=>{
+  document.getElementById('tab-library').style.display = 'none';
+  document.getElementById('tab-export').style.display = '';
+  renderDevSelectors();
+  renderExportPreview();
+});
+document.getElementById('backToLibraryBtn').addEventListener('click', ()=>{
+  document.getElementById('tab-export').style.display = 'none';
+  document.getElementById('tab-library').style.display = '';
+  renderLibrary();
 });
 
 /* ============================== EXPORT BUILDER ============================== */
@@ -1644,110 +1704,68 @@ function folderPathLabel(folderId){
 
 // Only directories (including "Unspecified") that directly contain at least
 // one device are offered — empty ones simply aren't selectable.
-function exportableFolders(){
-  const options = FOLDERS
-    .filter(f => countDirect(f.id) > 0)
-    .map(f => ({ value: f.id, label: folderPathLabel(f.id), count: countDirect(f.id) }))
-    .sort((a,b)=> a.label.localeCompare(b.label));
-  if(countDirect(null) > 0){
-    options.unshift({ value: '', label: 'Unspecified', count: countDirect(null) });
-  }
-  return options;
-}
-
-/* ============================== DIRECTORY SMART FILTER ==============================
-   Narrow down to the right platform directory by picking Standard then
-   Threshold, instead of scanning the whole Directory dropdown by hand. */
+/* ============================== PLATFORM PICKER (Standard / Threshold / Platform) ==============================
+   Replaces the old flat Directory dropdown: find the right platform by
+   narrowing standard then threshold, right inline in the export panel. */
 function exportableFoldersWithChain(){
-  return exportableFolders()
-    .filter(o => o.value !== '') // Unspecified has no standard/threshold/platform
-    .map(o => ({ ...o, chain: folderAncestorNames(o.value) }));
+  return FOLDERS
+    .filter(f => countDirect(f.id) > 0)
+    .map(f => ({ value: f.id, label: folderPathLabel(f.id), count: countDirect(f.id), chain: folderAncestorNames(f.id) }));
 }
 
-function openDirectorySmartFilter(){
+function renderPlatformPicker(resetThreshold, resetPlatform){
   const all = exportableFoldersWithChain();
-  const body = document.getElementById('modalBody');
+  const stdSel = document.getElementById('exportStandardSelect');
+  const thrSel = document.getElementById('exportThresholdSelect');
+  const platSel = document.getElementById('exportPlatformSelect');
 
-  function render(resetThreshold){
-    const standards = Array.from(new Set(all.map(o=>o.chain[0]).filter(Boolean))).sort();
-    const stdSelect = body.querySelector('#dsfStandard');
-    const selectedStd = stdSelect ? stdSelect.value : (standards[0] || '');
+  const standards = Array.from(new Set(all.map(o=>o.chain[0]).filter(Boolean))).sort();
+  if(!standards.length){
+    stdSel.innerHTML = '<option value="">No tagged directories yet</option>';
+    thrSel.innerHTML = '<option value="">—</option>';
+    platSel.innerHTML = '<option value="">—</option>';
+    renderBerOptions();
+    return;
+  }
+  const prevStd = stdSel.value;
+  stdSel.innerHTML = standards.map(s=>`<option value="${s}">${s}</option>`).join('');
+  stdSel.value = standards.includes(prevStd) ? prevStd : standards[0];
 
-    const withinStd = all.filter(o=>o.chain[0]===selectedStd);
-    const thresholds = Array.from(new Set(withinStd.map(o=>o.chain[1]).filter(Boolean))).sort();
-    const thrSelect = body.querySelector('#dsfThreshold');
-    const selectedThr = (resetThreshold || !thrSelect) ? (thresholds[0] || '') : thrSelect.value;
-
-    const matches = withinStd.filter(o => o.chain[1]===selectedThr);
-
-    body.innerHTML = `
-      <div class="modal-head">
-        <h3>Find platform</h3>
-        <button class="close" id="closeModal">×</button>
-      </div>
-      <p class="file-of" style="margin-bottom:14px;">Narrow down by standard and threshold to find the right platform directory.</p>
-      <div class="field-row">
-        <div class="field">
-          <label>Standard</label>
-          <select id="dsfStandard">
-            ${standards.length ? standards.map(s=>`<option value="${s}" ${s===selectedStd?'selected':''}>${s}</option>`).join('') : '<option value="">No tagged directories yet</option>'}
-          </select>
-        </div>
-        <div class="field">
-          <label>Threshold</label>
-          <select id="dsfThreshold">
-            ${thresholds.length ? thresholds.map(t=>`<option value="${t}" ${t===selectedThr?'selected':''}>${t}</option>`).join('') : '<option value="">No thresholds under this standard</option>'}
-          </select>
-        </div>
-      </div>
-      <div class="sf-value-list" id="dsfResults">
-        ${matches.length ? matches.map(m=>`
-          <div class="sf-value-row" data-folder="${m.value}" style="cursor:pointer;">
-            <label style="cursor:pointer;flex:1;">${escapeHtml(m.chain[2] || m.label)}</label>
-            <span class="folder-count">${m.count}</span>
-          </div>
-        `).join('') : '<div class="sf-value-row"><label style="color:var(--text-faint);">No matching platforms</label></div>'}
-      </div>
-      <button class="btn ghost" id="dsfCancel">Cancel</button>
-    `;
-
-    document.getElementById('closeModal').addEventListener('click', closeModal);
-    document.getElementById('dsfCancel').addEventListener('click', closeModal);
-    document.getElementById('dsfStandard').addEventListener('change', ()=>{
-      // Standard changed -> threshold choice no longer applies, reset to "any"
-      render(true);
-    });
-    document.getElementById('dsfThreshold').addEventListener('change', ()=>render(false));
-    body.querySelectorAll('#dsfResults [data-folder]').forEach(row=>{
-      row.addEventListener('click', ()=>{
-        const sel = document.getElementById('exportFolderSelect');
-        sel.value = row.dataset.folder;
-        sel.dispatchEvent(new Event('change'));
-        closeModal();
-      });
-    });
+  const withinStd = all.filter(o=>o.chain[0]===stdSel.value);
+  const thresholds = Array.from(new Set(withinStd.map(o=>o.chain[1]).filter(Boolean))).sort();
+  const prevThr = thrSel.value;
+  if(!thresholds.length){
+    thrSel.innerHTML = '<option value="">No thresholds under this standard</option>';
+  } else {
+    thrSel.innerHTML = thresholds.map(t=>`<option value="${t}">${t}</option>`).join('');
+    thrSel.value = (!resetThreshold && thresholds.includes(prevThr)) ? prevThr : thresholds[0];
   }
 
-  render();
-  document.getElementById('overlay').classList.add('show');
-}
-document.getElementById('dirSmartFilterBtn').addEventListener('click', openDirectorySmartFilter);
-
-function renderDevSelectors(){
-  const sel = document.getElementById('exportFolderSelect');
-  const prevValue = sel.value;
-  const options = exportableFolders();
-
-  sel.innerHTML = options.length
-    ? options.map(o=>`<option value="${o.value}">${escapeHtml(o.label)} (${o.count})</option>`).join('')
-    : '<option value="" disabled selected>No directories with devices yet</option>';
-
-  if(options.some(o=>o.value===prevValue)) sel.value = prevValue;
+  const withinThr = withinStd.filter(o=>o.chain[1]===thrSel.value);
+  const prevPlat = platSel.value;
+  if(!withinThr.length){
+    platSel.innerHTML = '<option value="">No platforms under this threshold</option>';
+  } else {
+    platSel.innerHTML = withinThr.map(o=>`<option value="${o.value}">${escapeHtml(o.chain[2] || o.label)}</option>`).join('');
+    platSel.value = (!resetPlatform && withinThr.some(o=>o.value===prevPlat)) ? prevPlat : withinThr[0].value;
+  }
 
   renderBerOptions();
 }
 
-document.getElementById('exportFolderSelect').addEventListener('change', renderExportPreview);
+document.getElementById('exportStandardSelect').addEventListener('change', ()=>{
+  renderPlatformPicker(true, true);
+  renderExportPreview();
+});
+document.getElementById('exportThresholdSelect').addEventListener('change', ()=>{
+  renderPlatformPicker(false, true);
+  renderExportPreview();
+});
+document.getElementById('exportPlatformSelect').addEventListener('change', renderExportPreview);
+
+function renderDevSelectors(){
+  renderPlatformPicker(false, false);
+}
 
 function renderBerOptions(){
   const sel = document.getElementById('berSelect');
@@ -1758,8 +1776,8 @@ function renderBerOptions(){
 }
 
 function selectedDevices(){
-  const sel = document.getElementById('exportFolderSelect');
-  const target = sel.value === '' ? null : sel.value;
+  const target = document.getElementById('exportPlatformSelect').value || null;
+  if(!target) return [];
   return DEVICES.filter(d => (d.folderId || null) === target);
 }
 
@@ -2233,7 +2251,7 @@ function buildExportGrid(pivot, paramName){
   const aoa = [];
   const merges = [];
 
-  aoa.push(['Radio Spec Console export — parameter: ' + paramName]);
+  aoa.push(['Products export — parameter: ' + paramName]);
   aoa.push(['Generated ' + new Date().toLocaleString()]);
   aoa.push([]);
 
@@ -2536,10 +2554,671 @@ document.getElementById('themeToggle').addEventListener('click', ()=>{
   applyTheme(current === 'dark' ? 'light' : 'dark');
 });
 
+/* ============================================================================
+   ANTENNA DATABASE
+   A second, independent library — same directory-tree component and
+   containment rules as the radio library, but for .adf antenna pattern
+   files. No export tab for this database.
+============================================================================ */
+
+/* -------------------- state -------------------- */
+let ANTENNAS = [];
+try{
+  const savedAnt = localStorage.getItem('adfAntennas');
+  if(savedAnt) ANTENNAS = JSON.parse(savedAnt);
+}catch(e){ ANTENNAS = []; }
+
+let ANTENNA_FOLDERS = [];
+try{
+  const savedAntFolders = localStorage.getItem('adfFolders');
+  if(savedAntFolders) ANTENNA_FOLDERS = JSON.parse(savedAntFolders);
+}catch(e){ ANTENNA_FOLDERS = []; }
+
+let antennaCurrentFolderId = null;
+let antennaFolderCounter = 0;
+let antennaCollapsedFolders = new Set();
+try{
+  const savedAntCollapsed = localStorage.getItem('adfCollapsedFolders');
+  if(savedAntCollapsed) antennaCollapsedFolders = new Set(JSON.parse(savedAntCollapsed));
+}catch(e){ antennaCollapsedFolders = new Set(); }
+
+let pendingAntennaUploadFolderId = null;
+let dragAntennaId = null;
+let dragAntennaFolderId = null;
+let contextMenuAntennaFolderId = null;
+
+function persistAntennas(){ try{ localStorage.setItem('adfAntennas', JSON.stringify(ANTENNAS)); }catch(e){} }
+function persistAntennaFolders(){ try{ localStorage.setItem('adfFolders', JSON.stringify(ANTENNA_FOLDERS)); }catch(e){} }
+function persistAntennaCollapsed(){ try{ localStorage.setItem('adfCollapsedFolders', JSON.stringify(Array.from(antennaCollapsedFolders))); }catch(e){} }
+
+/* -------------------- ADF parser -------------------- */
+// NSMA WG16.99.050 antenna pattern format: "KEY:,value" header lines, then
+// repeated PATCUT/POLARI/NUPOIN blocks each followed by that many
+// "angle,gain" pattern points, ending with ENDFIL:,EOF.
+function parseADF(text, fileName){
+  const lines = text.split(/\r\n|\r|\n/);
+  const raw = {};
+  const cuts = [];
+  let i = 0;
+
+  while(i < lines.length){
+    const line = lines[i];
+    const trimmed = line.trim();
+    if(!trimmed){ i++; continue; }
+    if(/^ENDFIL:/.test(trimmed)) break;
+
+    const m = trimmed.match(/^([A-Za-z0-9]+):,(.*)$/);
+    if(!m){ i++; continue; }
+    const key = m[1].trim().toUpperCase();
+    const value = m[2].trim();
+
+    if(key === 'PATCUT'){
+      const cutType = value;
+      let polari = null, numPoints = 0;
+      i++;
+      while(i < lines.length){
+        const l2 = lines[i].trim();
+        if(!l2){ i++; continue; }
+        const m2 = l2.match(/^([A-Za-z0-9]+):,(.*)$/);
+        if(m2 && m2[1].toUpperCase()==='POLARI'){ polari = m2[2].trim(); i++; continue; }
+        if(m2 && m2[1].toUpperCase()==='NUPOIN'){ numPoints = parseInt(m2[2].trim())||0; i++; break; }
+        break;
+      }
+      const points = [];
+      let count = 0;
+      while(i < lines.length && count < numPoints){
+        const l3 = lines[i].trim();
+        if(!l3){ i++; continue; }
+        const parts = l3.split(',').map(s=>s.trim()).filter(s=>s!=='');
+        if(parts.length>=2 && !isNaN(parseFloat(parts[0]))){
+          points.push([parseFloat(parts[0]), parseFloat(parts[1])]);
+          count++;
+        }
+        i++;
+      }
+      cuts.push({ cut:cutType, polari, points });
+      continue;
+    }
+
+    raw[key] = value;
+    i++;
+  }
+
+  return buildAntenna(raw, cuts, fileName);
+}
+
+function buildAntenna(raw, cuts, fileName){
+  const antenna = {
+    id: 'ant_' + Date.now() + '_' + Math.random().toString(36).slice(2,8),
+    fileName,
+    uploadedAt: new Date().toISOString(),
+    manufacturer: raw.ANTMAN || 'N/A',
+    model: raw.MODNUM || fileName.replace(/\.adf$/i,''),
+    patternNumber: raw.PATNUM || 'N/A',
+    revisionNum: raw.REVNUM || 'N/A',
+    revisionDate: raw.REVDAT || 'N/A',
+    dataDate: raw.DTDATA || 'N/A',
+    freqLow: num(raw.LOWFRQ),
+    freqHigh: num(raw.HGHFRQ),
+    gainUnits: raw.GUNITS || 'N/A',
+    gainLow: num(raw.LWGAIN),
+    gainMid: num(raw.MDGAIN),
+    gainHigh: num(raw.HGGAIN),
+    azBeamwidth: num(raw.AZWIDT),
+    elBeamwidth: num(raw.ELWIDT),
+    vswr: num(raw.ATVSWR),
+    frontToBack: num(raw.FRTOBA),
+    elTilt: num(raw.ELTILT),
+    patternType: raw.PATTYP || 'N/A',
+    numCuts: num(raw.NUMCUT),
+    descriptions: [1,2,3,4,5].map(n=>raw['DESCR'+n]).filter(c=>c && c.trim()!==''),
+    cuts,
+    folderId: (typeof pendingAntennaUploadFolderId !== 'undefined') ? pendingAntennaUploadFolderId : null
+  };
+  return antenna;
+}
+
+function isValidAdf(a){
+  return !!(a.manufacturer !== 'N/A' && a.model) && Array.isArray(a.cuts) && a.cuts.length > 0;
+}
+
+/* -------------------- folder tree (parallel to the radio one) -------------------- */
+function countAntennaDirect(folderId){
+  return ANTENNAS.filter(a=>a.folderId===folderId).length;
+}
+function countAntennaRecursive(folderId){
+  let total = countAntennaDirect(folderId);
+  ANTENNA_FOLDERS.filter(f=>f.parentId===folderId).forEach(child=>{ total += countAntennaRecursive(child.id); });
+  return total;
+}
+function antennaFolderHasItems(folderId){ return !!folderId && countAntennaDirect(folderId) > 0; }
+function antennaFolderHasSubfolders(folderId){ return !!folderId && ANTENNA_FOLDERS.some(f=>f.parentId===folderId); }
+
+function antennaFolderAncestorNames(folderId){
+  const names = [];
+  let f = ANTENNA_FOLDERS.find(x=>x.id===folderId);
+  while(f){ names.unshift(f.name); f = ANTENNA_FOLDERS.find(x=>x.id===f.parentId); }
+  return names;
+}
+function antennaFolderPathLabel(folderId){ return antennaFolderAncestorNames(folderId).join(' / '); }
+
+function resolveAntennaUploadFolderId(targetFolderId){
+  if(targetFolderId && antennaFolderHasSubfolders(targetFolderId)) return { folderId:null, redirected:true };
+  return { folderId: targetFolderId || null, redirected:false };
+}
+function moveAntennaToFolder(antenna, targetFolderId){
+  const { folderId, redirected } = resolveAntennaUploadFolderId(targetFolderId);
+  antenna.folderId = folderId;
+  persistAntennas();
+  if(redirected) alert('That directory contains subdirectories, so antennas can\u2019t be placed directly inside it. Moved to Unspecified instead.');
+  return !redirected;
+}
+
+function collectAntennaDescendantIds(folderId){
+  const ids = [folderId];
+  ANTENNA_FOLDERS.filter(f=>f.parentId===folderId).forEach(child=>{ ids.push(...collectAntennaDescendantIds(child.id)); });
+  return ids;
+}
+function moveAntennaFolderToParent(folderId, newParentId){
+  const folder = ANTENNA_FOLDERS.find(f=>f.id===folderId);
+  if(!folder) return;
+  if(newParentId === folderId) return;
+  if(newParentId && collectAntennaDescendantIds(folderId).includes(newParentId)){
+    alert('Can\u2019t move a directory into one of its own subdirectories.');
+    return;
+  }
+  if(newParentId && antennaFolderHasItems(newParentId)){
+    const target = ANTENNA_FOLDERS.find(f=>f.id===newParentId);
+    alert('"'+(target?target.name:'That directory')+'" already contains antennas, so it can\u2019t also contain subdirectories.');
+    return;
+  }
+  if(folder.parentId === newParentId) return;
+  folder.parentId = newParentId;
+  persistAntennaFolders();
+  renderAntennaLibrary();
+}
+function deleteAntennaFolder(folderId){
+  const folder = ANTENNA_FOLDERS.find(f=>f.id===folderId);
+  if(!folder) return;
+  const idsToRemove = collectAntennaDescendantIds(folderId);
+  const affected = ANTENNAS.filter(a=>idsToRemove.includes(a.folderId)).length;
+  const msg = affected>0
+    ? 'Delete "'+folder.name+'"'+(idsToRemove.length>1?' and its subdirectories':'')+'? '+affected+' antenna(s) inside will move to Unspecified.'
+    : 'Delete "'+folder.name+'"'+(idsToRemove.length>1?' and its subdirectories':'')+'?';
+  if(!confirm(msg)) return;
+  ANTENNAS.forEach(a=>{ if(idsToRemove.includes(a.folderId)) a.folderId = null; });
+  ANTENNA_FOLDERS = ANTENNA_FOLDERS.filter(f=>!idsToRemove.includes(f.id));
+  if(idsToRemove.includes(antennaCurrentFolderId)) antennaCurrentFolderId = null;
+  persistAntennas(); persistAntennaFolders();
+  renderAntennaLibrary();
+}
+function renameAntennaFolder(folderId){
+  const folder = ANTENNA_FOLDERS.find(f=>f.id===folderId);
+  if(!folder) return;
+  const name = prompt('Rename directory:', folder.name);
+  if(!name || !name.trim() || name.trim()===folder.name) return;
+  folder.name = name.trim();
+  persistAntennaFolders();
+  renderAntennaLibrary();
+}
+
+function openAntennaFolderContextMenu(folderId, x, y){
+  contextMenuAntennaFolderId = folderId;
+  const menu = document.getElementById('antennaFolderContextMenu');
+  menu.style.display = 'flex';
+  const maxX = window.innerWidth - menu.offsetWidth - 8;
+  const maxY = window.innerHeight - menu.offsetHeight - 8;
+  menu.style.left = Math.min(x, maxX) + 'px';
+  menu.style.top = Math.min(y, maxY) + 'px';
+}
+function closeAntennaFolderContextMenu(){
+  contextMenuAntennaFolderId = null;
+  document.getElementById('antennaFolderContextMenu').style.display = 'none';
+}
+document.getElementById('antCtxAddSub').addEventListener('click', ()=>{
+  const id = contextMenuAntennaFolderId; closeAntennaFolderContextMenu();
+  if(id) createAntennaFolder(id);
+});
+document.getElementById('antCtxRename').addEventListener('click', ()=>{
+  const id = contextMenuAntennaFolderId; closeAntennaFolderContextMenu();
+  if(id) renameAntennaFolder(id);
+});
+document.getElementById('antCtxDelete').addEventListener('click', ()=>{
+  const id = contextMenuAntennaFolderId; closeAntennaFolderContextMenu();
+  if(id) deleteAntennaFolder(id);
+});
+document.addEventListener('click', (e)=>{ if(!e.target.closest('#antennaFolderContextMenu')) closeAntennaFolderContextMenu(); });
+document.addEventListener('scroll', closeAntennaFolderContextMenu, true);
+window.addEventListener('resize', closeAntennaFolderContextMenu);
+
+function renderAntennaFolderTree(){
+  const wrap = document.getElementById('antennaFolderTree');
+  if(!wrap) return;
+
+  let html = '<div class="folder-item'+(antennaCurrentFolderId===null?' active':'')+'" data-folder="" style="padding-left:8px;">'+
+    '<span class="folder-name"><span class="folder-toggle-spacer"></span><span class="folder-icon">\u25CF</span>Unspecified</span>'+
+    '<span class="folder-count">'+countAntennaDirect(null)+'</span>'+
+  '</div>';
+
+  (function walk(parentId, depth){
+    ANTENNA_FOLDERS.filter(f=>f.parentId===parentId).forEach(f=>{
+      const hasKids = ANTENNA_FOLDERS.some(k=>k.parentId===f.id);
+      const isCollapsed = antennaCollapsedFolders.has(f.id);
+      const toggle = hasKids
+        ? '<button type="button" class="folder-toggle" data-toggle="'+f.id+'" title="'+(isCollapsed?'Expand':'Minimize')+'">'+(isCollapsed?'\u25B8':'\u25BE')+'</button>'
+        : '<span class="folder-toggle-spacer"></span>';
+      html += '<div class="folder-item'+(antennaCurrentFolderId===f.id?' active':'')+'" data-folder="'+f.id+'" style="padding-left:'+(8+depth*16)+'px;">'+
+        '<span class="folder-name">'+toggle+'<span class="folder-icon">\u25CF</span>'+escapeHtml(f.name)+'</span>'+
+        '<span style="display:flex;align-items:center;gap:4px;">'+
+          '<span class="folder-count">'+countAntennaRecursive(f.id)+'</span>'+
+          '<button type="button" class="folder-del" data-folder-del="'+f.id+'" title="Delete directory">\u2715</button>'+
+        '</span>'+
+      '</div>';
+      if(!isCollapsed) walk(f.id, depth+1);
+    });
+  })(null, 1);
+
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll('[data-toggle]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const id = btn.dataset.toggle;
+      if(antennaCollapsedFolders.has(id)) antennaCollapsedFolders.delete(id); else antennaCollapsedFolders.add(id);
+      persistAntennaCollapsed();
+      renderAntennaFolderTree();
+    });
+  });
+
+  wrap.querySelectorAll('.folder-item').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      if(e.target.closest('[data-folder-del]') || e.target.closest('[data-toggle]')) return;
+      antennaCurrentFolderId = el.dataset.folder === '' ? null : el.dataset.folder;
+      showAntennaGridView();
+    });
+    if(el.dataset.folder !== ''){
+      el.draggable = true;
+      el.addEventListener('dragstart', (e)=>{
+        e.stopPropagation();
+        dragAntennaFolderId = el.dataset.folder;
+        dragAntennaId = null;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', 'folder:'+el.dataset.folder);
+        el.classList.add('dragging');
+      });
+      el.addEventListener('dragend', ()=>{ dragAntennaFolderId = null; el.classList.remove('dragging'); });
+    }
+    el.addEventListener('dragover', (e)=>{ e.preventDefault(); el.classList.add('drag-over'); });
+    el.addEventListener('dragleave', ()=> el.classList.remove('drag-over'));
+    el.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      el.classList.remove('drag-over');
+      const targetFolderId = el.dataset.folder === '' ? null : el.dataset.folder;
+
+      if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length){
+        handleAntennaFiles(e.dataTransfer.files, targetFolderId);
+        return;
+      }
+      if(dragAntennaFolderId){
+        const draggedId = dragAntennaFolderId;
+        dragAntennaFolderId = null;
+        moveAntennaFolderToParent(draggedId, targetFolderId);
+        return;
+      }
+      if(!dragAntennaId) return;
+      const ant = ANTENNAS.find(x=>x.id===dragAntennaId);
+      if(ant){ moveAntennaToFolder(ant, targetFolderId); renderAntennaLibrary(); }
+      dragAntennaId = null;
+    });
+    if(el.dataset.folder !== ''){
+      el.addEventListener('contextmenu', (e)=>{
+        e.preventDefault();
+        openAntennaFolderContextMenu(el.dataset.folder, e.clientX, e.clientY);
+      });
+    }
+  });
+
+  wrap.querySelectorAll('[data-folder-del]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); deleteAntennaFolder(btn.dataset.folderDel); });
+  });
+}
+
+// Creates a new antenna directory under parentId (null = root), enforcing
+// the same containment rule as the radio tree.
+function createAntennaFolder(parentId){
+  const parent = ANTENNA_FOLDERS.find(f=>f.id===parentId);
+  if(parentId && antennaFolderHasItems(parentId)){
+    alert('"'+(parent?parent.name:'This directory')+'" already contains antennas, so it can\u2019t also contain subdirectories. Move its antennas out first, or create the new directory somewhere else.');
+    return;
+  }
+  const name = prompt('New directory name' + (parent ? ' (inside "'+parent.name+'")' : '') + ':');
+  if(!name || !name.trim()) return;
+  const id = 'adir_' + (++antennaFolderCounter) + '_' + Date.now();
+  ANTENNA_FOLDERS.push({ id, name: name.trim(), parentId: parentId });
+  persistAntennaFolders();
+  renderAntennaLibrary();
+}
+
+document.getElementById('newAntennaFolderBtn').addEventListener('click', ()=> createAntennaFolder(null));
+
+function antennaFolderOptionsHtml(selectedId){
+  let html = '<option value=""' + (!selectedId ? ' selected' : '') + '>Unspecified</option>';
+  (function walk(parentId, depth){
+    ANTENNA_FOLDERS.filter(f=>f.parentId===parentId).forEach(f=>{
+      const indent = '\u2014 '.repeat(depth);
+      html += '<option value="'+f.id+'"'+(selectedId===f.id?' selected':'')+'>'+indent+escapeHtml(f.name)+'</option>';
+      walk(f.id, depth+1);
+    });
+  })(null, 0);
+  return html;
+}
+
+/* -------------------- library grid -------------------- */
+function renderAntennaLibrary(){
+  const grid = document.getElementById('antGrid');
+  const empty = document.getElementById('antEmpty');
+  grid.innerHTML = '';
+
+  const visible = ANTENNAS.filter(a => (a.folderId||null) === antennaCurrentFolderId);
+
+  if(visible.length===0){
+    empty.style.display = 'block';
+    empty.textContent = ANTENNAS.length===0
+      ? 'No antennas yet — click "+ Add new antenna" to populate your library.'
+      : (antennaCurrentFolderId===null
+          ? 'No unspecified antennas — everything has been filed into a directory.'
+          : 'No antennas in this directory yet — drag a card here, or use its Move menu.');
+  } else {
+    empty.style.display = 'none';
+  }
+
+  visible.forEach(a=>{
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.draggable = true;
+    card.dataset.id = a.id;
+    const freqLabel = (a.freqLow!=null && a.freqHigh!=null) ? a.freqLow+'\u2013'+a.freqHigh+' MHz' : 'N/A';
+    card.innerHTML = `
+      <div class="card-top">
+        <div>
+          <div class="card-model">${a.model}</div>
+          <div class="card-mfr">${a.manufacturer}</div>
+        </div>
+        <button class="card-del" title="Remove" data-id="${a.id}">✕</button>
+      </div>
+      <div class="card-stats">
+        <span class="stat-label">Freq</span><span class="stat-value">${freqLabel}</span>
+        <span class="stat-label">Gain</span><span class="stat-value">${fmt(a.gainMid, ' '+(a.gainUnits!=='N/A'?a.gainUnits.split('/')[0]:'dBi'))}</span>
+        <span class="stat-label">Az BW</span><span class="stat-value">${fmt(a.azBeamwidth,'°')}</span>
+        <span class="stat-label">El BW</span><span class="stat-value">${fmt(a.elBeamwidth,'°')}</span>
+      </div>
+      <select class="card-move" data-id="${a.id}" title="Move to directory">
+        ${antennaFolderOptionsHtml(a.folderId)}
+      </select>
+    `;
+    card.addEventListener('click', (e)=>{
+      if(e.target.classList.contains('card-del') || e.target.classList.contains('card-move')) return;
+      openAntennaDetail(a.id);
+    });
+    card.addEventListener('dragstart', (e)=>{
+      dragAntennaId = a.id;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', a.id);
+      card.classList.add('dragging');
+    });
+    card.addEventListener('dragend', ()=>{ dragAntennaId = null; card.classList.remove('dragging'); });
+    grid.appendChild(card);
+  });
+
+  grid.querySelectorAll('.card-del').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      ANTENNAS = ANTENNAS.filter(x=>x.id!==btn.dataset.id);
+      persistAntennas();
+      renderAntennaLibrary();
+    });
+  });
+  grid.querySelectorAll('.card-move').forEach(sel=>{
+    sel.addEventListener('click', e=> e.stopPropagation());
+    sel.addEventListener('change', ()=>{
+      const ant = ANTENNAS.find(x=>x.id===sel.dataset.id);
+      if(ant){ moveAntennaToFolder(ant, sel.value===''?null:sel.value); renderAntennaLibrary(); }
+    });
+  });
+
+  renderAntennaFolderTree();
+}
+
+/* -------------------- detail modal with polar pattern plot -------------------- */
+function antennaPolarPlot(points, size){
+  size = size || 320;
+  const floor = -40; // dB floor for the plot's inner radius
+  const radius = size/2 - 22;
+  const cx = size/2, cy = size/2;
+
+  function toXY(angleDeg, gainDb){
+    const clamped = Math.max(Math.min(gainDb,0), floor);
+    const r = radius * ((clamped - floor) / (0 - floor));
+    const rad = angleDeg * Math.PI/180;
+    return [cx + r*Math.sin(rad), cy - r*Math.cos(rad)];
+  }
+
+  const path = points.map(([a,g],i)=>{
+    const [x,y] = toXY(a,g);
+    return (i===0?'M':'L') + x.toFixed(1) + ',' + y.toFixed(1);
+  }).join(' ');
+
+  let grid = '';
+  [0,-10,-20,-30].forEach(db=>{
+    const r = radius * ((Math.max(db,floor) - floor) / (0 - floor));
+    grid += `<circle cx="${cx}" cy="${cy}" r="${r.toFixed(1)}" fill="none" style="stroke:var(--border);stroke-width:1"/>`;
+    grid += `<text x="${(cx+r+3).toFixed(1)}" y="${cy.toFixed(1)}" font-size="9" style="fill:var(--text-faint);font-family:var(--sans)">${db}</text>`;
+  });
+  [0,90,180,270].forEach(ang=>{
+    const [x,y] = toXY(ang, 0);
+    const [x0,y0] = [cx,cy];
+    grid += `<line x1="${x0}" y1="${y0}" x2="${(cx+(x-cx)*(radius/Math.max(1,Math.hypot(x-cx,y-cy)))).toFixed(1)}" y2="${(cy+(y-cy)*(radius/Math.max(1,Math.hypot(x-cx,y-cy)))).toFixed(1)}" style="stroke:var(--border);stroke-width:1"/>`;
+  });
+  const labels = [['0°',cx,cy-radius-10,'middle'],['90°',cx+radius+14,cy,'start'],['180°',cx,cy+radius+14,'middle'],['-90°',cx-radius-14,cy,'end']];
+  const labelSvg = labels.map(([t,x,y,anchor])=>`<text x="${x}" y="${y}" font-size="10" text-anchor="${anchor}" style="fill:var(--text-dim);font-family:var(--sans);font-weight:600">${t}</text>`).join('');
+
+  return `<svg viewBox="0 0 ${size} ${size}" width="100%" height="${size}" style="overflow:visible;">
+    ${grid}
+    <path d="${path}" fill="none" style="stroke:var(--accent-2);stroke-width:1.8" stroke-linejoin="round"/>
+    ${labelSvg}
+  </svg>`;
+}
+
+function cutLabel(c){ return c.cut + ' ' + (c.polari || ''); }
+
+function renderAntennaCutSection(a, cutIndex){
+  const c = a.cuts[cutIndex];
+  if(!c) return '<div class="empty">No pattern data</div>';
+  const peak = c.points.reduce((max,p)=> p[1]>max ? p[1] : max, -Infinity);
+  return `
+    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+      <div style="flex:0 0 auto;">${antennaPolarPlot(c.points)}</div>
+      <div class="spec-grid" style="border-top:none;flex:1;min-width:220px;">
+        <div class="spec-row"><span>Cut Type</span><span>${c.cut||'N/A'}</span></div>
+        <div class="spec-row"><span>Polarization</span><span>${c.polari||'N/A'}</span></div>
+        <div class="spec-row"><span>Data Points</span><span>${c.points.length}</span></div>
+        <div class="spec-row"><span>Peak (relative)</span><span>${fmt(peak,' dB')}</span></div>
+        <div class="spec-row"><span>Angular Range</span><span>${fmt(c.points[0]?.[0])}° to ${fmt(c.points[c.points.length-1]?.[0])}°</span></div>
+      </div>
+    </div>
+  `;
+}
+
+function openAntennaDetail(id){
+  const a = ANTENNAS.find(x=>x.id===id);
+  if(!a) return;
+  const body = document.getElementById('modalBody');
+  const descRows = a.descriptions.map(d=>`<div class="spec-row"><span>Description</span><span>${d}</span></div>`).join('');
+
+  body.innerHTML = `
+    <div class="modal-head">
+      <h3>${a.model}</h3>
+      <button class="close" id="closeModal">×</button>
+    </div>
+    <div class="file-of">${a.fileName} · imported ${new Date(a.uploadedAt).toLocaleString()}</div>
+
+    <div class="spec-grid" style="border-top:1px solid var(--border);">
+      <div class="grp">Identification</div>
+      <div class="spec-row"><span>Manufacturer</span><span>${a.manufacturer}</span></div>
+      <div class="spec-row"><span>Pattern Number</span><span>${a.patternNumber}</span></div>
+      <div class="spec-row"><span>Revision</span><span>${a.revisionNum}</span></div>
+      <div class="spec-row"><span>Revision Date</span><span>${a.revisionDate}</span></div>
+      <div class="spec-row"><span>Data Date</span><span>${a.dataDate}</span></div>
+
+      <div class="grp">RF &amp; Gain</div>
+      <div class="spec-row"><span>Frequency Range</span><span>${a.freqLow!=null&&a.freqHigh!=null ? a.freqLow+'–'+a.freqHigh+' MHz' : 'N/A'}</span></div>
+      <div class="spec-row"><span>Gain Units</span><span>${a.gainUnits}</span></div>
+      <div class="spec-row"><span>Gain (Low/Mid/High)</span><span>${fmt(a.gainLow)} / ${fmt(a.gainMid)} / ${fmt(a.gainHigh)}</span></div>
+      <div class="spec-row"><span>Az / El Beamwidth</span><span>${fmt(a.azBeamwidth,'°')} / ${fmt(a.elBeamwidth,'°')}</span></div>
+      <div class="spec-row"><span>VSWR</span><span>${fmt(a.vswr)}</span></div>
+      <div class="spec-row"><span>Front-to-Back</span><span>${fmt(a.frontToBack,' dB')}</span></div>
+      <div class="spec-row"><span>Elevation Tilt</span><span>${fmt(a.elTilt,'°')}</span></div>
+      <div class="spec-row"><span>Pattern Type</span><span>${a.patternType}</span></div>
+      <div class="spec-row"><span>Number of Cuts</span><span>${a.numCuts!=null?a.numCuts:a.cuts.length}</span></div>
+
+      ${descRows ? '<div class="grp">Notes</div>' + descRows : ''}
+    </div>
+
+    ${a.cuts && a.cuts.length ? `
+    <div class="grp" style="padding-top:14px;">Radiation Pattern</div>
+    <div class="field" style="max-width:320px;margin:6px 0 14px;">
+      <label>Pattern Cut</label>
+      <select id="antCutSelect">
+        ${a.cuts.map((c,i)=>`<option value="${i}">${cutLabel(c)}</option>`).join('')}
+      </select>
+    </div>
+    <div id="antCutDynamic">${renderAntennaCutSection(a, 0)}</div>
+    ` : ''}
+  `;
+
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('closeModal').addEventListener('click', closeModal);
+  if(a.cuts && a.cuts.length){
+    document.getElementById('antCutSelect').addEventListener('change', (e)=>{
+      document.getElementById('antCutDynamic').innerHTML = renderAntennaCutSection(a, parseInt(e.target.value,10));
+    });
+  }
+}
+
+/* -------------------- import flow -------------------- */
+const antDropzone = document.getElementById('antDropzone');
+const antFileInput = document.getElementById('antFileInput');
+antDropzone.addEventListener('click', ()=>antFileInput.click());
+antDropzone.addEventListener('dragover', e=>{ e.preventDefault(); antDropzone.classList.add('drag'); });
+antDropzone.addEventListener('dragleave', ()=> antDropzone.classList.remove('drag'));
+antDropzone.addEventListener('drop', e=>{
+  e.preventDefault(); antDropzone.classList.remove('drag');
+  handleAntennaFiles(e.dataTransfer.files);
+});
+antFileInput.addEventListener('change', e=> handleAntennaFiles(e.target.files));
+
+function showAntennaImportView(){
+  document.getElementById('antImportSection').style.display = '';
+  document.getElementById('antGridHead').style.display = 'none';
+  document.getElementById('antGrid').style.display = 'none';
+  document.getElementById('antEmpty').style.display = 'none';
+}
+function showAntennaGridView(){
+  document.getElementById('antImportSection').style.display = 'none';
+  document.getElementById('antGridHead').style.display = '';
+  document.getElementById('antGrid').style.display = '';
+  renderAntennaLibrary();
+}
+document.getElementById('addAntennaBtn').addEventListener('click', showAntennaImportView);
+document.getElementById('antCancelImportBtn').addEventListener('click', showAntennaGridView);
+
+const antennaLibraryMain = document.getElementById('antennaLibraryMain');
+antennaLibraryMain.addEventListener('dragover', e=>{
+  if(!isFileDrag(e)) return;
+  e.preventDefault();
+  if(document.getElementById('antImportSection').style.display === 'none') showAntennaImportView();
+});
+antennaLibraryMain.addEventListener('drop', e=>{
+  if(!isFileDrag(e)) return;
+  e.preventDefault();
+  antDropzone.classList.remove('drag');
+  handleAntennaFiles(e.dataTransfer.files);
+});
+
+function handleAntennaFiles(fileList, targetFolderId){
+  const files = Array.from(fileList);
+  let pending = files.length;
+  if(!pending) return;
+
+  const target = targetFolderId !== undefined ? targetFolderId : antennaCurrentFolderId;
+  const resolved = resolveAntennaUploadFolderId(target);
+  pendingAntennaUploadFolderId = resolved.folderId;
+  let newlyAdded = 0;
+
+  const finish = ()=>{
+    persistAntennas();
+    showAntennaGridView();
+    if(resolved.redirected && newlyAdded > 0){
+      alert('The directory you dropped into contains subdirectories, so antenna(s) can\u2019t be placed directly inside it. Added to Unspecified instead.');
+    }
+  };
+
+  files.forEach(f=>{
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{
+        const ant = parseADF(reader.result, f.name);
+        if(!isValidAdf(ant)){
+          alert('"'+f.name+'" doesn\u2019t look like a valid .adf antenna pattern file, so it wasn\u2019t added.');
+          pending--;
+          if(pending===0) finish();
+          return;
+        }
+        const existingIndex = ANTENNAS.findIndex(x=>x.fileName === f.name);
+        if(existingIndex !== -1){
+          const replace = confirm('"'+f.name+'" already exists in your antenna library. Replace it?');
+          if(!replace){ pending--; if(pending===0) finish(); return; }
+          const old = ANTENNAS[existingIndex];
+          ant.id = old.id;
+          ant.folderId = old.folderId;
+          ANTENNAS[existingIndex] = ant;
+        } else {
+          ANTENNAS.push(ant);
+          newlyAdded++;
+        }
+      }catch(err){
+        console.error('Failed to parse', f.name, err);
+      }
+      pending--;
+      if(pending===0) finish();
+    };
+    reader.readAsText(f);
+  });
+  antFileInput.value = '';
+}
+
+/* -------------------- radio / antenna directory toggle -------------------- */
+function switchDb(db){
+  const isAntenna = db === 'antenna';
+  document.getElementById('tab-export').style.display = 'none';
+  document.getElementById('tab-antenna').style.display = isAntenna ? '' : 'none';
+  document.getElementById('tab-library').style.display = isAntenna ? 'none' : '';
+  document.querySelectorAll('.dir-db-btn').forEach(b=> b.classList.toggle('active', b.dataset.db===db));
+  if(isAntenna){
+    renderAntennaLibrary();
+  } else {
+    renderLibrary();
+  }
+}
+document.querySelectorAll('.dir-db-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> switchDb(btn.dataset.db));
+});
+
 /* ============================== INIT ============================== */
 renderLibrary();
 renderDevSelectors();
 renderQueue();
+renderAntennaFolderTree();
 </script>
 </body>
 </html>
